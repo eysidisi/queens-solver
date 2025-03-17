@@ -21,86 +21,147 @@ namespace QueensProblem.Service.ImageProcessing
 
         public (Bitmap WarpedBoard, int Rows, int Columns) ExtractBoardAndAnalyze(Mat colorImage)
         {
-            // Add more robust error handling for screen captures
             try
             {
-                // Load the image.
+                // 1. Preprocess
                 _debugHelper.SaveDebugImage(colorImage, "original");
 
-                // Convert to grayscale.
                 Mat gray = new Mat();
                 CvInvoke.CvtColor(colorImage, gray, ColorConversion.Bgr2Gray);
                 _debugHelper.SaveDebugImage(gray, "gray");
 
-                // Blur to reduce noise.
                 Mat blurred = new Mat();
                 CvInvoke.GaussianBlur(gray, blurred, new Size(5, 5), 0);
                 _debugHelper.SaveDebugImage(blurred, "blurred");
 
-                // Adaptive threshold to create a binary image.
                 Mat thresh = new Mat();
-                CvInvoke.AdaptiveThreshold(blurred, thresh, 255, AdaptiveThresholdType.MeanC, ThresholdType.BinaryInv, 11, 2);
+                CvInvoke.AdaptiveThreshold(
+                    blurred,
+                    thresh,
+                    255,
+                    AdaptiveThresholdType.MeanC,
+                    ThresholdType.BinaryInv,
+                    11,
+                    2);
                 _debugHelper.SaveDebugImage(thresh, "thresh");
 
-                // Find contours.
+                // 2. Find contours
                 VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint();
-                CvInvoke.FindContours(thresh, contours, null!, RetrType.External, ChainApproxMethod.ChainApproxSimple);
+                CvInvoke.FindContours(
+                    thresh,
+                    contours,
+                    null!,
+                    RetrType.External,
+                    ChainApproxMethod.ChainApproxSimple);
 
-                double maxArea = 0;
-                Point[]? boardContour = null;
-                // Loop through contours to find the largest quadrilateral.
+                // Store all candidate boards in this list
+                List<(Point[] Corners, double Area)> candidateBoards = new();
+
                 for (int i = 0; i < contours.Size; i++)
                 {
                     VectorOfPoint contour = contours[i];
                     double area = CvInvoke.ContourArea(contour);
-                    if (area > 1000) // filter out small areas.
+
+                    // Filter out very small areas
+                    if (area < 1000)
+                        continue;
+
+                    // Approximate contour to polygon
+                    double peri = CvInvoke.ArcLength(contour, true);
+                    VectorOfPoint approx = new VectorOfPoint();
+                    CvInvoke.ApproxPolyDP(contour, approx, 0.02 * peri, true);
+
+                    // If it has 4 corners, consider it a candidate
+                    if (approx.Size == 4)
                     {
-                        double peri = CvInvoke.ArcLength(contour, true);
-                        VectorOfPoint approx = new VectorOfPoint();
-                        CvInvoke.ApproxPolyDP(contour, approx, 0.02 * peri, true);
-                        if (approx.Size == 4 && area > maxArea)
-                        {
-                            maxArea = area;
-                            boardContour = approx.ToArray();
-                        }
+                        candidateBoards.Add((approx.ToArray(), area));
                     }
                 }
 
-                if (boardContour == null)
-                    throw new Exception("Board contour not found.");
-
-                // Draw the detected board contour for debugging.
-                Mat contourDebug = colorImage.Clone();
-                VectorOfPoint boardVector = new VectorOfPoint(boardContour!);
-                CvInvoke.Polylines(contourDebug, boardVector, true, new MCvScalar(0, 0, 255), 2);
-                _debugHelper.SaveDebugImage(contourDebug, "boardContour");
-
-                Mat boardMat;
-                int boardSize = 450; // Standard size for the board
-
-                // Original warping approach
-                // Order the contour points (top-left, top-right, bottom-right, bottom-left).
-                Point[] orderedPoints = OrderPoints(boardContour);
-
-                // Define destination points for a square board.
-                PointF[] destPoints = new PointF[]
+                if (candidateBoards.Count == 0)
                 {
-                        new PointF(0, 0),
-                        new PointF(boardSize - 1, 0),
-                        new PointF(boardSize - 1, boardSize - 1),
-                        new PointF(0, boardSize - 1)
-                };
+                    throw new Exception("No quadrilateral board contours found.");
+                }
 
-                // Compute perspective transform and warp the image.
-                Mat transform = CvInvoke.GetPerspectiveTransform(Array.ConvertAll(orderedPoints, p => new PointF(p.X, p.Y)), destPoints);
-                boardMat = new Mat();
-                CvInvoke.WarpPerspective(colorImage, boardMat, transform, new Size(boardSize, boardSize));
-                _debugHelper.SaveDebugImage(boardMat, "warped");
+                // 3. Evaluate each candidate by warping and checking grid consistency
+                double bestScore = double.MinValue;
+                Point[]? bestContour = null;
+                int bestRows = 0, bestColumns = 0;
+                Mat? bestWarp = null;
 
-                // Detect grid dimensions
-                var (rows, columns) = DetectGridDimensions(boardMat);
+                foreach (var (corners, area) in candidateBoards)
+                {
+                    // First check the aspect ratio of the bounding rectangle
+                    // to ensure it’s approximately a square.
+                    Rectangle boundingRect = CvInvoke.BoundingRectangle(new VectorOfPoint(corners));
+                    double aspectRatio = (double)boundingRect.Width / boundingRect.Height;
+                    bool isSquare = aspectRatio > 0.9 && aspectRatio < 1.1; // Tweak tolerance as needed
+                    if (!isSquare)
+                        continue;
 
-                return (boardMat.ToBitmap(), rows, columns);
+                    // Warp this candidate
+                    Point[] orderedPoints = OrderPoints(corners);
+                    int boardSize = 450;
+                    PointF[] destPoints = new PointF[]
+                    {
+                new PointF(0, 0),
+                new PointF(boardSize - 1, 0),
+                new PointF(boardSize - 1, boardSize - 1),
+                new PointF(0, boardSize - 1)
+                    };
+
+                    Mat transform = CvInvoke.GetPerspectiveTransform(
+                        Array.ConvertAll(orderedPoints, p => new PointF(p.X, p.Y)),
+                        destPoints);
+
+                    Mat candidateWarp = new Mat();
+                    CvInvoke.WarpPerspective(
+                        colorImage,
+                        candidateWarp,
+                        transform,
+                        new Size(boardSize, boardSize));
+
+                    // Check grid dimensions on the warped candidate
+                    var (rows, cols) = DetectGridDimensions(candidateWarp);
+
+                    // Enforce minimum 4x4
+                    if (rows < 4 || cols < 4)
+                        continue;
+
+                    // Define a scoring heuristic:
+                    // - The more rows & columns we have, the higher the score.
+                    // - Optionally, give a slight boost for area if multiple boards have the same rows/cols.
+                    double candidateScore = (rows * cols) + area * 0.0001;
+
+                    // Update best if this candidate is better
+                    if (candidateScore > bestScore)
+                    {
+                        bestScore = candidateScore;
+                        bestContour = corners;
+                        bestRows = rows;
+                        bestColumns = cols;
+                        bestWarp = candidateWarp;
+                    }
+                }
+
+                if (bestContour == null || bestWarp == null)
+                {
+                    throw new Exception("No valid board contour found after evaluating candidates.");
+                }
+
+                // 4. Debug: draw the chosen board contour on the original
+                Mat contourDebug = colorImage.Clone();
+                VectorOfPoint boardVector = new VectorOfPoint(bestContour);
+                CvInvoke.Polylines(
+                    contourDebug,
+                    boardVector,
+                    true,
+                    new MCvScalar(0, 0, 255),
+                    2);
+                _debugHelper.SaveDebugImage(contourDebug, "final_board_contour");
+
+                // 5. Return the best warp and its grid dimensions
+                return (bestWarp.ToBitmap(), bestRows, bestColumns);
             }
             catch (Exception ex)
             {
