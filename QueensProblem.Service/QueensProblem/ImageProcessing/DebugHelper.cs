@@ -1,7 +1,7 @@
 ﻿using System.Drawing;
 using Emgu.CV;
 
-namespace QueensProblem.Service.ImageProcessing
+namespace QueensProblem.Service.QueensProblem.ImageProcessing
 {
     /// <summary>
     /// Handles debug-related functionality
@@ -71,7 +71,7 @@ namespace QueensProblem.Service.ImageProcessing
             }
             string debugFileName = "debug_cells.png";
             debugBitmap.Save(debugFileName);
-            System.Console.WriteLine($"Debug cell label image saved: {debugFileName}");
+            Console.WriteLine($"Debug cell label image saved: {debugFileName}");
         }
 
         public void LogDebugMessage(string message)

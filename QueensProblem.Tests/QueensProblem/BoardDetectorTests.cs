@@ -4,9 +4,9 @@ using Emgu.CV.CvEnum;
 using System.Drawing;
 using System.IO;
 using Emgu.CV.Structure;
-using QueensProblem.Service.ImageProcessing;
+using QueensProblem.Service.QueensProblem.ImageProcessing;
 
-namespace QueensProblem.Tests
+namespace QueensProblem.Tests.Queens
 {
     public class BoardDetectorTests : IDisposable
     {
@@ -31,7 +31,7 @@ namespace QueensProblem.Tests
 
         private Mat CreateTestBoard(int rows, int columns, int size = 450)
         {
-            Mat board = new Mat(size, size, Emgu.CV.CvEnum.DepthType.Cv8U, 3);
+            Mat board = new Mat(size, size, DepthType.Cv8U, 3);
             _disposableResources.Add(board);
             board.SetTo(new MCvScalar(255, 255, 255)); // White background
 
@@ -174,7 +174,7 @@ namespace QueensProblem.Tests
             Assert.True(File.Exists(imagePath), $"Test image not found: {imagePath}");
             
             // Load the image
-            Mat image = CvInvoke.Imread(imagePath, Emgu.CV.CvEnum.ImreadModes.Color);
+            Mat image = CvInvoke.Imread(imagePath, ImreadModes.Color);
             _disposableResources.Add(image);
             
             // Act - Extract the board and analyze in one step

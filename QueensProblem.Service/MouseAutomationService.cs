@@ -1,4 +1,4 @@
-using QueensProblem.Service.Algorithm;
+using QueensProblem.Service.QueensProblem.Algorithm;
 using System;
 using System.Drawing;
 using System.Runtime.InteropServices;

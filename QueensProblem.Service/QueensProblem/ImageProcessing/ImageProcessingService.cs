@@ -1,14 +1,13 @@
 using Emgu.CV;
 using Emgu.CV.CvEnum;
-using QueensProblem.Service.Algorithm;
-using QueensProblem.Service.Algorithm;
+using QueensProblem.Service.QueensProblem.Algorithm;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
 
-namespace QueensProblem.Service.ImageProcessing
+namespace QueensProblem.Service.QueensProblem.ImageProcessing
 {
     public class ImageProcessingService
     {

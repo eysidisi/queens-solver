@@ -1,9 +1,9 @@
 ﻿using Xunit;
 using System;
 using System.Collections.Generic;
-using QueensProblem.Service.Algorithm;
+using QueensProblem.Service.QueensProblem.Algorithm;
 
-namespace QueensProblem.Tests.QueensProblem.Tests
+namespace QueensProblem.Tests.Queens
 {
     /// <summary>
     /// Helper methods for verifying queen placement solutions in tests

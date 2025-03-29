@@ -1,8 +1,7 @@
-using QueensProblem.Service.Algorithm;
-using QueensProblem.Tests.QueensProblem.Tests;
+using QueensProblem.Service.QueensProblem.Algorithm;
 using Xunit;
 
-namespace QueensProblem.Tests
+namespace QueensProblem.Tests.Queens
 {
     /// <summary>
     /// Tests for the QueensSolver class to verify it can solve the Queens Problem

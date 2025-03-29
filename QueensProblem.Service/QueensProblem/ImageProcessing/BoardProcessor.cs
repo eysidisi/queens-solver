@@ -2,9 +2,9 @@
 using System.Linq;
 using System.Drawing.Imaging;
 using Emgu.CV;
-using QueensProblem.Service.Algorithm;
+using QueensProblem.Service.QueensProblem.Algorithm;
 
-namespace QueensProblem.Service.ImageProcessing
+namespace QueensProblem.Service.QueensProblem.ImageProcessing
 {
     /// <summary>
     /// Processes board images to extract cell information
@@ -107,9 +107,9 @@ namespace QueensProblem.Service.ImageProcessing
             {
                 for (int j = 0; j < board.GetLength(1); j++)
                 {
-                    System.Console.Write(board[i, j] + "\t");
+                    Console.Write(board[i, j] + "\t");
                 }
-                System.Console.WriteLine();
+                Console.WriteLine();
             }
         }
 

@@ -7,10 +7,10 @@ using System.Collections.Generic;
 using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Xunit;
-using QueensProblem.Service.Algorithm;
-using QueensProblem.Service.ImageProcessing;
+using QueensProblem.Service.QueensProblem.Algorithm;
+using QueensProblem.Service.QueensProblem.ImageProcessing;
 
-namespace QueensProblem.E2ETests
+namespace QueensProblem.Tests.Queens
 {
     public class ManualSolverTests
     {

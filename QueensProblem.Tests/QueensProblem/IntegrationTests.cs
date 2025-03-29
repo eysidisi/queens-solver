@@ -1,9 +1,8 @@
 ﻿using Emgu.CV;
-using QueensProblem.Tests.QueensProblem.Tests;
-using QueensProblem.Service.ImageProcessing;
-using QueensProblem.Service.Algorithm;
+using QueensProblem.Service.QueensProblem.Algorithm;
+using QueensProblem.Service.QueensProblem.ImageProcessing;
 
-namespace QueensProblem.Tests
+namespace QueensProblem.Tests.Queens
 {
     /// <summary>
     /// Integration tests that verify the full end-to-end flow of the Queens Problem solution

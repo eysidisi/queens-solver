@@ -1,6 +1,6 @@
 ﻿using System.Drawing;
 
-namespace QueensProblem.Service.ImageProcessing
+namespace QueensProblem.Service.QueensProblem.ImageProcessing
 {
     /// <summary>
     /// Handles color analysis and classification

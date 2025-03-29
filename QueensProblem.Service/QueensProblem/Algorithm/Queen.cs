@@ -1,4 +1,4 @@
-﻿namespace QueensProblem.Service.Algorithm
+﻿namespace QueensProblem.Service.QueensProblem.Algorithm
 {
     public class Queen
     {

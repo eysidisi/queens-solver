@@ -1,5 +1,5 @@
 using Emgu.CV;
-using QueensProblem.Service.ImageProcessing;
+using QueensProblem.Service.QueensProblem.ImageProcessing;
 using System;
 using System.Drawing;
 using System.Threading;

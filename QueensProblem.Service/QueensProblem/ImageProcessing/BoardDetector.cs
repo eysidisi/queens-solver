@@ -5,7 +5,7 @@ using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using Emgu.CV.Util;
 
-namespace QueensProblem.Service.ImageProcessing
+namespace QueensProblem.Service.QueensProblem.ImageProcessing
 {
     /// <summary>
     /// Handles board detection and extraction from images
@@ -53,6 +53,18 @@ namespace QueensProblem.Service.ImageProcessing
                     null!,
                     RetrType.External,
                     ChainApproxMethod.ChainApproxSimple);
+
+                // Debug: Draw each found contour on its own image and save it.
+                for (int i = 0; i < contours.Size; i++)
+                {
+                    using (VectorOfPoint contour = contours[i])
+                    {
+                        // Clone the original image so each contour is drawn separately.
+                        Mat singleContourImage = colorImage.Clone();
+                        CvInvoke.Polylines(singleContourImage, contour, true, new MCvScalar(0, 255, 0), 2);
+                        _debugHelper.SaveDebugImage(singleContourImage, $"contour_{i}");
+                    }
+                }
 
                 // Store all candidate boards in this list
                 List<(Point[] Corners, double Area)> candidateBoards = new();
@@ -131,7 +143,7 @@ namespace QueensProblem.Service.ImageProcessing
                     // Define a scoring heuristic:
                     // - The more rows & columns we have, the higher the score.
                     // - Optionally, give a slight boost for area if multiple boards have the same rows/cols.
-                    double candidateScore = (rows * cols) + area * 0.0001;
+                    double candidateScore = rows * cols + area * 0.0001;
 
                     // Update best if this candidate is better
                     if (candidateScore > bestScore)
@@ -296,7 +308,7 @@ namespace QueensProblem.Service.ImageProcessing
                             cellWidth,
                             cellHeight);
 
-                        MCvScalar color = ((r + c) % 2 == 0) ?
+                        MCvScalar color = (r + c) % 2 == 0 ?
                             new MCvScalar(0, 255, 0, 128) : // Green for even cells
                             new MCvScalar(0, 0, 255, 128);  // Red for odd cells
 

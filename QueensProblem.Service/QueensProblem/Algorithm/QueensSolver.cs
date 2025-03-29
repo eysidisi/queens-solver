@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace QueensProblem.Service.Algorithm
+namespace QueensProblem.Service.QueensProblem.Algorithm
 {
     public class QueensSolver
     {

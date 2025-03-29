@@ -1,10 +1,10 @@
 ﻿using Emgu.CV.CvEnum;
 using Emgu.CV;
 using System.Text.RegularExpressions;
-using QueensProblem.Service.ImageProcessing;
 using System.Drawing;
+using QueensProblem.Service.QueensProblem.ImageProcessing;
 
-namespace QueensProblem.Tests
+namespace QueensProblem.Tests.Queens
 {
     /// <summary>
     /// Tests for the BoardProcessor class that handles chess board image processing
