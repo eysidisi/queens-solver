@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using Emgu.CV;
 using Emgu.CV.CvEnum;
@@ -11,10 +12,11 @@ using Tesseract;
 
 namespace QueensProblem.Service.ZipSolver.ImageProcessing
 {
-    public class ZipBoardProcessor
+    public class ZipBoardProcessor : IDisposable
     {
         private readonly DebugHelper _debugHelper;
         private readonly TesseractEngine _tesseract;
+        static int count = 0;
 
         public ZipBoardProcessor(DebugHelper debugHelper)
         {
@@ -27,8 +29,10 @@ namespace QueensProblem.Service.ZipSolver.ImageProcessing
             string tessdataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
             _tesseract = new TesseractEngine(tessdataPath, "eng", EngineMode.Default);
 
-            // Configure Tesseract for digit recognition
-            _tesseract.SetVariable("tessedit_char_whitelist", "0123456789");
+            // Configure Tesseract for digit recognition (set once here)
+            _tesseract.SetVariable("tessedit_char_whitelist", "123456789");
+            _tesseract.SetVariable("classify_bln_numeric_mode", "1");
+
         }
 
         public ZipBoard ProcessImage(Mat colorImage, int numberOfCells)
@@ -78,12 +82,11 @@ namespace QueensProblem.Service.ZipSolver.ImageProcessing
             return zipBoard;
         }
 
-        static int count = 0;
         private int DetectNumberInCell(Mat cellMat)
         {
             try
             {
-                // Preprocess the cell image for better number detection
+                // Preprocess the cell image for better OCR performance
                 using (Mat processedCell = PreprocessCellForOCR(cellMat))
                 {
                     _debugHelper.SaveDebugImage(processedCell, $"processed_cell_for_ocr_{count++}");
@@ -91,17 +94,12 @@ namespace QueensProblem.Service.ZipSolver.ImageProcessing
                     // Convert Mat to Bitmap
                     using (Bitmap bmp = processedCell.ToBitmap())
                     {
-                        // Convert Bitmap to Pix
+                        // Convert Bitmap to Pix (Tesseract's image format)
                         using (var pix = Pix.LoadFromMemory(ImageToByte(bmp)))
                         {
-                            // Configure Tesseract for this specific detection
-                            _tesseract.SetVariable("tessedit_char_whitelist", "0123456789");
-                            _tesseract.SetVariable("classify_bln_numeric_mode", "1");
-                            _tesseract.SetVariable("tessedit_do_invert", "0");
-                            _tesseract.SetVariable("tessedit_pageseg_mode", "7");
-
-                            // Perform OCR
-                            using (var page = _tesseract.Process(pix))
+                            // Optionally, you can still set some OCR variables here if needed.
+                            // Here we use the overload that accepts PageSegMode.SingleChar for better single-digit detection.
+                            using (var page = _tesseract.Process(pix, PageSegMode.SingleChar))
                             {
                                 string text = page.GetText().Trim();
                                 float confidence = page.GetMeanConfidence();
@@ -109,12 +107,12 @@ namespace QueensProblem.Service.ZipSolver.ImageProcessing
                                 _debugHelper.LogDebugMessage($"OCR detected text: '{text}' with confidence: {confidence}");
 
                                 // Try to parse the detected text as a number
-                                if (int.TryParse(text, out int number) /*&& confidence > 0.3*/)
+                                if (int.TryParse(text, out int number))
                                 {
                                     return number;
                                 }
 
-                                // If confidence is low, try additional cleaning of the text
+                                // If initial parse fails, clean the text further
                                 var cleanedText = new string(text.Where(c => char.IsDigit(c)).ToArray());
                                 if (!string.IsNullOrEmpty(cleanedText) && int.TryParse(cleanedText, out number))
                                 {
@@ -148,54 +146,40 @@ namespace QueensProblem.Service.ZipSolver.ImageProcessing
             Mat processed = new Mat();
             cellMat.CopyTo(processed);
 
-            // Resize for better OCR performance (larger is often better for OCR)
+            // Resize for better OCR performance (scaling up can help)
             CvInvoke.Resize(processed, processed, new Size(cellMat.Width * 3, cellMat.Height * 3));
 
-            // Convert to grayscale if the image is color
+            // Convert to grayscale if the image is in color
             if (processed.NumberOfChannels > 1)
             {
                 CvInvoke.CvtColor(processed, processed, ColorConversion.Bgr2Gray);
             }
 
-            // Apply threshold to convert to binary image - this will handle both 
-            // dark backgrounds with light text and light backgrounds with dark text
+            // Apply threshold to convert to a binary image
             Mat binary = new Mat();
             CvInvoke.Threshold(processed, binary, 0, 255, ThresholdType.Otsu | ThresholdType.Binary);
 
-            // Check if we need to invert (we want white text on black background)
-            // Count white pixels
+            // If more than 50% is white, invert (so that the digit is isolated)
             MCvScalar sum = CvInvoke.Sum(binary);
             double whitePixelRatio = sum.V0 / (255.0 * binary.Width * binary.Height);
-
-            // If more than 50% is white, invert the image (assuming the number is smaller than background)
             if (whitePixelRatio > 0.5)
             {
                 CvInvoke.BitwiseNot(binary, binary);
             }
 
-            // Apply morphological operations to clean up the image
+            // Clean up noise with morphological operations
             Mat element = CvInvoke.GetStructuringElement(ElementShape.Rectangle, new Size(3, 3), new Point(-1, -1));
-
-            // Remove noise (small dots)
             CvInvoke.MorphologyEx(binary, binary, MorphOp.Open, element, new Point(-1, -1), 1, BorderType.Default, new MCvScalar());
-
-            // Make the digits thicker
             CvInvoke.MorphologyEx(binary, binary, MorphOp.Dilate, element, new Point(-1, -1), 1, BorderType.Default, new MCvScalar());
 
-            // Find contours to locate the number
+            // Find contours to focus on the region containing the number
             using (VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint())
             {
-                CvInvoke.FindContours(
-                    binary,
-                    contours,
-                    null,
-                    RetrType.External,
-                    ChainApproxMethod.ChainApproxSimple);
+                CvInvoke.FindContours(binary, contours, null, RetrType.External, ChainApproxMethod.ChainApproxSimple);
 
-                // If we found contours, focus on the largest one (should be the circle with the number)
                 if (contours.Size > 0)
                 {
-                    // Find the largest contour (by area)
+                    // Locate the largest contour (assumed to be the circle with the number)
                     int largestContourIndex = 0;
                     double largestContourArea = 0;
 
@@ -209,24 +193,21 @@ namespace QueensProblem.Service.ZipSolver.ImageProcessing
                         }
                     }
 
-                    // Create a mask with just the largest contour
+                    // Create a mask from the largest contour
                     Mat mask = new Mat(binary.Size, DepthType.Cv8U, 1);
                     mask.SetTo(new MCvScalar(0));
                     CvInvoke.DrawContours(mask, contours, largestContourIndex, new MCvScalar(255), -1);
-
-                    // Apply the mask to our binary image
                     CvInvoke.BitwiseAnd(binary, mask, binary);
 
                     // Crop to the bounding rectangle of the largest contour
                     Rectangle boundingRect = CvInvoke.BoundingRectangle(contours[largestContourIndex]);
 
-                    // Ensure the bounding rect is valid and has a reasonable size
                     if (boundingRect.Width > 5 && boundingRect.Height > 5 &&
                         boundingRect.X >= 0 && boundingRect.Y >= 0 &&
                         boundingRect.X + boundingRect.Width <= binary.Width &&
                         boundingRect.Y + boundingRect.Height <= binary.Height)
                     {
-                        // Add a small padding around the number
+                        // Add a small padding around the detected number
                         int padding = 5;
                         Rectangle paddedRect = new Rectangle(
                             Math.Max(0, boundingRect.X - padding),
@@ -234,21 +215,17 @@ namespace QueensProblem.Service.ZipSolver.ImageProcessing
                             Math.Min(binary.Width - boundingRect.X, boundingRect.Width + padding * 2),
                             Math.Min(binary.Height - boundingRect.Y, boundingRect.Height + padding * 2)
                         );
-
                         binary = new Mat(binary, paddedRect);
                     }
                 }
             }
 
-            // Enhance the contrast
+            // Enhance contrast
             CvInvoke.EqualizeHist(binary, binary);
 
-            // Ensure white text on black background (better for Tesseract)
+            // Ensure white digits on a dark background; if less than 30% is white, invert the image
             MCvScalar binarySum = CvInvoke.Sum(binary);
             double binaryWhiteRatio = binarySum.V0 / (255.0 * binary.Width * binary.Height);
-
-            // If less than 30% is white (assuming the digit takes about 30% of the image),
-            // we should invert to get white text on black background
             if (binaryWhiteRatio < 0.3)
             {
                 CvInvoke.BitwiseNot(binary, binary);
