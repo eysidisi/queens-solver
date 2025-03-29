@@ -67,7 +67,7 @@ namespace QueensProblem.Service.ZipSolver.ImageProcessing
 
                     using (Mat cellMat = new Mat(processedBoard, cellRect))
                     {
-                        int cellNumber = DetectNumberInCell(cellMat);
+                        int cellNumber = DetectNumberInCell(cellMat, row, col);
                         zipBoard.SetNodeOrder(row, col, cellNumber);
 
                         // Save debug image of processed cell
@@ -82,14 +82,14 @@ namespace QueensProblem.Service.ZipSolver.ImageProcessing
             return zipBoard;
         }
 
-        private int DetectNumberInCell(Mat cellMat)
+        private int DetectNumberInCell(Mat cellMat, int row, int col)
         {
             try
             {
                 // Preprocess the cell image for better OCR performance
                 using (Mat processedCell = PreprocessCellForOCR(cellMat))
                 {
-                    _debugHelper.SaveDebugImage(processedCell, $"processed_cell_for_ocr_{count++}");
+                    _debugHelper.SaveDebugImage(processedCell, $"processed_cell_{row}_{col}");
 
                     // Convert Mat to Bitmap
                     using (Bitmap bmp = processedCell.ToBitmap())
@@ -170,9 +170,55 @@ namespace QueensProblem.Service.ZipSolver.ImageProcessing
             // Clean up noise with morphological operations
             Mat element = CvInvoke.GetStructuringElement(ElementShape.Rectangle, new Size(3, 3), new Point(-1, -1));
             CvInvoke.MorphologyEx(binary, binary, MorphOp.Open, element, new Point(-1, -1), 1, BorderType.Default, new MCvScalar());
+
+            // Check if there's a circle in the image (as numbers are always in circles)
+            bool circleDetected = false;
+            using (VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint())
+            {
+                // Find contours
+                CvInvoke.FindContours(binary, contours, null, RetrType.External, ChainApproxMethod.ChainApproxSimple);
+
+                // Analyze contours to find circles
+                if (contours.Size > 0)
+                {
+                    for (int i = 0; i < contours.Size; i++)
+                    {
+                        // Get contour area and perimeter
+                        double area = CvInvoke.ContourArea(contours[i]);
+                        double perimeter = CvInvoke.ArcLength(contours[i], true);
+
+                        // Check if it's large enough to consider
+                        if (area > 100)  // Adjust threshold as needed
+                        {
+                            // Calculate circularity: 4*π*area/perimeter²
+                            // A perfect circle has circularity = 1
+                            double circularity = (4 * Math.PI * area) / (perimeter * perimeter);
+
+                            // If circularity is close to 1, it's likely a circle
+                            if (circularity > 0.7)  // Adjust threshold as needed
+                            {
+                                circleDetected = true;
+                                _debugHelper.LogDebugMessage($"Circle detected with circularity: {circularity}");
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // If no circle is detected, return a blank image (indicating no number)
+            if (!circleDetected)
+            {
+                _debugHelper.LogDebugMessage("No circle detected in cell, returning blank image");
+                Mat blank = new Mat(processed.Size, DepthType.Cv8U, 1);
+                blank.SetTo(new MCvScalar(0)); // Black background
+                return blank;
+            }
+
+            // Continue with the rest of the processing
             CvInvoke.MorphologyEx(binary, binary, MorphOp.Dilate, element, new Point(-1, -1), 1, BorderType.Default, new MCvScalar());
 
-            // Find contours to focus on the region containing the number
+            // Find contours again to focus on the region containing the number
             using (VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint())
             {
                 CvInvoke.FindContours(binary, contours, null, RetrType.External, ChainApproxMethod.ChainApproxSimple);
