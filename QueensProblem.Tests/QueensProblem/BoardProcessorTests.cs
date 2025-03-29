@@ -3,6 +3,7 @@ using Emgu.CV;
 using System.Text.RegularExpressions;
 using System.Drawing;
 using QueensProblem.Service.QueensProblem.ImageProcessing;
+using QueensProblem.Service;
 
 namespace QueensProblem.Tests.Queens
 {

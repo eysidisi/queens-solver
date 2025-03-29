@@ -5,6 +5,7 @@ using System.Drawing;
 using System.IO;
 using Emgu.CV.Structure;
 using QueensProblem.Service.QueensProblem.ImageProcessing;
+using QueensProblem.Service;
 
 namespace ZipProblem.Tests
 {

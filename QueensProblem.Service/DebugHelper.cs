@@ -1,7 +1,7 @@
 ﻿using System.Drawing;
 using Emgu.CV;
 
-namespace QueensProblem.Service.QueensProblem.ImageProcessing
+namespace QueensProblem.Service
 {
     /// <summary>
     /// Handles debug-related functionality

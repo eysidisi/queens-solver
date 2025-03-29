@@ -9,6 +9,7 @@ using Emgu.CV.CvEnum;
 using Xunit;
 using QueensProblem.Service.QueensProblem.Algorithm;
 using QueensProblem.Service.QueensProblem.ImageProcessing;
+using QueensProblem.Service;
 
 namespace QueensProblem.Tests.Queens
 {

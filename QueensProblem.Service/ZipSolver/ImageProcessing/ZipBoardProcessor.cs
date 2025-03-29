@@ -1,0 +1,283 @@
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
+using Emgu.CV;
+using Emgu.CV.CvEnum;
+using Emgu.CV.Structure;
+using Emgu.CV.Util;
+using QueensProblem.Service.ZipProblem;
+using Tesseract;
+
+namespace QueensProblem.Service.ZipSolver.ImageProcessing
+{
+    public class ZipBoardProcessor
+    {
+        private readonly DebugHelper _debugHelper;
+        private readonly TesseractEngine _tesseract;
+
+        public ZipBoardProcessor(DebugHelper debugHelper)
+        {
+            _debugHelper = debugHelper;
+
+            // Ensure tessdata exists
+            EnsureTessDataExists();
+
+            // Initialize Tesseract with English language data
+            string tessdataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
+            _tesseract = new TesseractEngine(tessdataPath, "eng", EngineMode.Default);
+
+            // Configure Tesseract for digit recognition
+            _tesseract.SetVariable("tessedit_char_whitelist", "0123456789");
+        }
+
+        public ZipBoard ProcessImage(Mat colorImage, int numberOfCells)
+        {
+            _debugHelper.SaveDebugImage(colorImage, "input_board");
+
+            // Create and analyze the ZipBoard
+            var zipBoard = AnalyzeProcessedBoard(colorImage, numberOfCells);
+
+            return zipBoard;
+        }
+
+        private ZipBoard AnalyzeProcessedBoard(Mat processedBoard, int numberOfCells)
+        {
+            var zipBoard = new ZipBoard(numberOfCells, numberOfCells);
+
+            // Calculate cell dimensions
+            int cellHeight = processedBoard.Height / numberOfCells;
+            int cellWidth = processedBoard.Width / numberOfCells;
+
+            // Process each cell
+            for (int row = 0; row < numberOfCells; row++)
+            {
+                for (int col = 0; col < numberOfCells; col++)
+                {
+                    Rectangle cellRect = new Rectangle(
+                        col * cellWidth,
+                        row * cellHeight,
+                        cellWidth,
+                        cellHeight
+                    );
+
+                    using (Mat cellMat = new Mat(processedBoard, cellRect))
+                    {
+                        int cellNumber = DetectNumberInCell(cellMat);
+                        zipBoard.SetNodeOrder(row, col, cellNumber);
+
+                        // Save debug image of processed cell
+                        _debugHelper.SaveDebugImage(cellMat, $"cell_{row}_{col}_number_{cellNumber}");
+                    }
+                }
+            }
+
+            // Set up default connectivity
+            zipBoard.SetupNeighbors((node1, node2) => true);
+
+            return zipBoard;
+        }
+
+        static int count = 0;
+        private int DetectNumberInCell(Mat cellMat)
+        {
+            try
+            {
+                // Preprocess the cell image for better number detection
+                using (Mat processedCell = PreprocessCellForOCR(cellMat))
+                {
+                    _debugHelper.SaveDebugImage(processedCell, $"processed_cell_for_ocr_{count++}");
+
+                    // Convert Mat to Bitmap
+                    using (Bitmap bmp = processedCell.ToBitmap())
+                    {
+                        // Convert Bitmap to Pix
+                        using (var pix = Pix.LoadFromMemory(ImageToByte(bmp)))
+                        {
+                            // Configure Tesseract for this specific detection
+                            _tesseract.SetVariable("tessedit_char_whitelist", "0123456789");
+                            _tesseract.SetVariable("classify_bln_numeric_mode", "1");
+                            _tesseract.SetVariable("tessedit_do_invert", "0");
+                            _tesseract.SetVariable("tessedit_pageseg_mode", "7");
+
+                            // Perform OCR
+                            using (var page = _tesseract.Process(pix))
+                            {
+                                string text = page.GetText().Trim();
+                                float confidence = page.GetMeanConfidence();
+
+                                _debugHelper.LogDebugMessage($"OCR detected text: '{text}' with confidence: {confidence}");
+
+                                // Try to parse the detected text as a number
+                                if (int.TryParse(text, out int number) /*&& confidence > 0.3*/)
+                                {
+                                    return number;
+                                }
+
+                                // If confidence is low, try additional cleaning of the text
+                                var cleanedText = new string(text.Where(c => char.IsDigit(c)).ToArray());
+                                if (!string.IsNullOrEmpty(cleanedText) && int.TryParse(cleanedText, out number))
+                                {
+                                    return number;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _debugHelper.LogDebugMessage($"Error detecting number: {ex.Message}");
+            }
+
+            return 0; // Return 0 if no number is detected or on error
+        }
+
+        private byte[] ImageToByte(Bitmap img)
+        {
+            using (var stream = new MemoryStream())
+            {
+                img.Save(stream, System.Drawing.Imaging.ImageFormat.Png);
+                return stream.ToArray();
+            }
+        }
+
+        private Mat PreprocessCellForOCR(Mat cellMat)
+        {
+            // Create a working copy
+            Mat processed = new Mat();
+            cellMat.CopyTo(processed);
+
+            // Resize for better OCR performance (larger is often better for OCR)
+            CvInvoke.Resize(processed, processed, new Size(cellMat.Width * 3, cellMat.Height * 3));
+
+            // Convert to grayscale if the image is color
+            if (processed.NumberOfChannels > 1)
+            {
+                CvInvoke.CvtColor(processed, processed, ColorConversion.Bgr2Gray);
+            }
+
+            // Apply threshold to convert to binary image - this will handle both 
+            // dark backgrounds with light text and light backgrounds with dark text
+            Mat binary = new Mat();
+            CvInvoke.Threshold(processed, binary, 0, 255, ThresholdType.Otsu | ThresholdType.Binary);
+
+            // Check if we need to invert (we want white text on black background)
+            // Count white pixels
+            MCvScalar sum = CvInvoke.Sum(binary);
+            double whitePixelRatio = sum.V0 / (255.0 * binary.Width * binary.Height);
+
+            // If more than 50% is white, invert the image (assuming the number is smaller than background)
+            if (whitePixelRatio > 0.5)
+            {
+                CvInvoke.BitwiseNot(binary, binary);
+            }
+
+            // Apply morphological operations to clean up the image
+            Mat element = CvInvoke.GetStructuringElement(ElementShape.Rectangle, new Size(3, 3), new Point(-1, -1));
+
+            // Remove noise (small dots)
+            CvInvoke.MorphologyEx(binary, binary, MorphOp.Open, element, new Point(-1, -1), 1, BorderType.Default, new MCvScalar());
+
+            // Make the digits thicker
+            CvInvoke.MorphologyEx(binary, binary, MorphOp.Dilate, element, new Point(-1, -1), 1, BorderType.Default, new MCvScalar());
+
+            // Find contours to locate the number
+            using (VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint())
+            {
+                CvInvoke.FindContours(
+                    binary,
+                    contours,
+                    null,
+                    RetrType.External,
+                    ChainApproxMethod.ChainApproxSimple);
+
+                // If we found contours, focus on the largest one (should be the circle with the number)
+                if (contours.Size > 0)
+                {
+                    // Find the largest contour (by area)
+                    int largestContourIndex = 0;
+                    double largestContourArea = 0;
+
+                    for (int i = 0; i < contours.Size; i++)
+                    {
+                        double area = CvInvoke.ContourArea(contours[i]);
+                        if (area > largestContourArea)
+                        {
+                            largestContourArea = area;
+                            largestContourIndex = i;
+                        }
+                    }
+
+                    // Create a mask with just the largest contour
+                    Mat mask = new Mat(binary.Size, DepthType.Cv8U, 1);
+                    mask.SetTo(new MCvScalar(0));
+                    CvInvoke.DrawContours(mask, contours, largestContourIndex, new MCvScalar(255), -1);
+
+                    // Apply the mask to our binary image
+                    CvInvoke.BitwiseAnd(binary, mask, binary);
+
+                    // Crop to the bounding rectangle of the largest contour
+                    Rectangle boundingRect = CvInvoke.BoundingRectangle(contours[largestContourIndex]);
+
+                    // Ensure the bounding rect is valid and has a reasonable size
+                    if (boundingRect.Width > 5 && boundingRect.Height > 5 &&
+                        boundingRect.X >= 0 && boundingRect.Y >= 0 &&
+                        boundingRect.X + boundingRect.Width <= binary.Width &&
+                        boundingRect.Y + boundingRect.Height <= binary.Height)
+                    {
+                        // Add a small padding around the number
+                        int padding = 5;
+                        Rectangle paddedRect = new Rectangle(
+                            Math.Max(0, boundingRect.X - padding),
+                            Math.Max(0, boundingRect.Y - padding),
+                            Math.Min(binary.Width - boundingRect.X, boundingRect.Width + padding * 2),
+                            Math.Min(binary.Height - boundingRect.Y, boundingRect.Height + padding * 2)
+                        );
+
+                        binary = new Mat(binary, paddedRect);
+                    }
+                }
+            }
+
+            // Enhance the contrast
+            CvInvoke.EqualizeHist(binary, binary);
+
+            // Ensure white text on black background (better for Tesseract)
+            MCvScalar binarySum = CvInvoke.Sum(binary);
+            double binaryWhiteRatio = binarySum.V0 / (255.0 * binary.Width * binary.Height);
+
+            // If less than 30% is white (assuming the digit takes about 30% of the image),
+            // we should invert to get white text on black background
+            if (binaryWhiteRatio < 0.3)
+            {
+                CvInvoke.BitwiseNot(binary, binary);
+            }
+
+            return binary;
+        }
+
+        private void EnsureTessDataExists()
+        {
+            string tessdataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
+            string engDataPath = Path.Combine(tessdataPath, "eng.traineddata");
+
+            if (!Directory.Exists(tessdataPath))
+            {
+                Directory.CreateDirectory(tessdataPath);
+            }
+
+            if (!File.Exists(engDataPath))
+            {
+                throw new FileNotFoundException(
+                    "Tesseract English language data file not found. Please ensure 'eng.traineddata' " +
+                    "is present in the tessdata directory, or install the Tesseract.Data.English NuGet package.");
+            }
+        }
+
+        public void Dispose()
+        {
+            _tesseract?.Dispose();
+        }
+    }
+}

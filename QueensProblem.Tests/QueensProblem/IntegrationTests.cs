@@ -1,4 +1,5 @@
 ﻿using Emgu.CV;
+using QueensProblem.Service;
 using QueensProblem.Service.QueensProblem.Algorithm;
 using QueensProblem.Service.QueensProblem.ImageProcessing;
 
