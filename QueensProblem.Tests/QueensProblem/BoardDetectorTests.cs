@@ -151,7 +151,7 @@ namespace QueensProblem.Tests.Queens
         public void ExtractBoardAndAnalyze_WithRealImages_ShouldReturnCorrectDimensions(string imageName, int expectedRows, int expectedColumns)
         {
             // Arrange
-            string imagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TestImages", imageName);
+            string imagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "QueensProblem/TestImages", imageName);
             
             // Make sure the test image exists
             if (!File.Exists(imagePath))

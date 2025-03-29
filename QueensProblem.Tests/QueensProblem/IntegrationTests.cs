@@ -13,8 +13,8 @@ namespace QueensProblem.Tests.Queens
         private readonly DebugHelper _debugHelper;
         private readonly BoardDetector _boardDetector;
         private readonly ColorAnalyzer _colorAnalyzer;
-        private readonly BoardProcessor _boardProcessor;
-        private const string TestImagesDirectory = "TestImages";
+        private readonly QueensBoardProcessor _boardProcessor;
+        private const string TestImagesDirectory = "QueensProblem/TestImages";
         private static readonly string[] SupportedExtensions = { ".png", ".jpg", ".jpeg", ".bmp" };
 
         /// <summary>
@@ -26,7 +26,7 @@ namespace QueensProblem.Tests.Queens
             _debugHelper = new DebugHelper(false);
             _boardDetector = new BoardDetector(_debugHelper);
             _colorAnalyzer = new ColorAnalyzer();
-            _boardProcessor = new BoardProcessor(_colorAnalyzer, _debugHelper);
+            _boardProcessor = new QueensBoardProcessor(_colorAnalyzer, _debugHelper);
         }
 
         [Fact]

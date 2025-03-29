@@ -23,32 +23,12 @@ namespace QueensProblem.Service.QueensProblem.ImageProcessing
         {
             try
             {
-                // 1. Preprocess
-                _debugHelper.SaveDebugImage(colorImage, "original");
-
-                Mat gray = new Mat();
-                CvInvoke.CvtColor(colorImage, gray, ColorConversion.Bgr2Gray);
-                _debugHelper.SaveDebugImage(gray, "gray");
-
-                Mat blurred = new Mat();
-                CvInvoke.GaussianBlur(gray, blurred, new Size(5, 5), 0);
-                _debugHelper.SaveDebugImage(blurred, "blurred");
-
-                Mat thresh = new Mat();
-                CvInvoke.AdaptiveThreshold(
-                    blurred,
-                    thresh,
-                    255,
-                    AdaptiveThresholdType.MeanC,
-                    ThresholdType.BinaryInv,
-                    11,
-                    2);
-                _debugHelper.SaveDebugImage(thresh, "thresh");
+                var dilated = PreprocessImage(colorImage);
 
                 // 2. Find contours
                 VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint();
                 CvInvoke.FindContours(
-                    thresh,
+                    dilated,
                     contours,
                     null!,
                     RetrType.External,
@@ -78,10 +58,10 @@ namespace QueensProblem.Service.QueensProblem.ImageProcessing
                     if (area < 1000)
                         continue;
 
-                    // Approximate contour to polygon
+                    // Use a smaller epsilon for more precise approximation
                     double peri = CvInvoke.ArcLength(contour, true);
                     VectorOfPoint approx = new VectorOfPoint();
-                    CvInvoke.ApproxPolyDP(contour, approx, 0.02 * peri, true);
+                    CvInvoke.ApproxPolyDP(contour, approx, 0.01 * peri, true);
 
                     // If it has 4 corners, consider it a candidate
                     if (approx.Size == 4)
@@ -103,24 +83,28 @@ namespace QueensProblem.Service.QueensProblem.ImageProcessing
 
                 foreach (var (corners, area) in candidateBoards)
                 {
-                    // First check the aspect ratio of the bounding rectangle
-                    // to ensure it’s approximately a square.
+                    // Make aspect ratio check more lenient
                     Rectangle boundingRect = CvInvoke.BoundingRectangle(new VectorOfPoint(corners));
                     double aspectRatio = (double)boundingRect.Width / boundingRect.Height;
-                    bool isSquare = aspectRatio > 0.9 && aspectRatio < 1.1; // Tweak tolerance as needed
+                    bool isSquare = aspectRatio > 0.8 && aspectRatio < 1.2; // More tolerant range
                     if (!isSquare)
+                        continue;
+
+                    // Add size check relative to image
+                    double relativeArea = area / (colorImage.Width * colorImage.Height);
+                    if (relativeArea < 0.1) // Board should be at least 10% of the image
                         continue;
 
                     // Warp this candidate
                     Point[] orderedPoints = OrderPoints(corners);
                     int boardSize = 450;
-                    PointF[] destPoints = new PointF[]
-                    {
+                    PointF[] destPoints =
+                    [
                 new PointF(0, 0),
                 new PointF(boardSize - 1, 0),
                 new PointF(boardSize - 1, boardSize - 1),
                 new PointF(0, boardSize - 1)
-                    };
+                    ];
 
                     Mat transform = CvInvoke.GetPerspectiveTransform(
                         Array.ConvertAll(orderedPoints, p => new PointF(p.X, p.Y)),
@@ -426,5 +410,205 @@ namespace QueensProblem.Service.QueensProblem.ImageProcessing
             return groups.Select(g => (int)g.Average()).OrderBy(p => p).ToList();
         }
 
+        public (Bitmap WarpedBoard, int Rows, int Columns) ExtractCurvedBoardAndAnalyze(Mat colorImage)
+        {
+            try
+            {
+                // 1. Preprocess the image
+                Mat preprocessedImage = PreprocessImage(colorImage);
+                
+                // 2. Find and evaluate contours
+                var (bestContour, bestBounds) = FindBestBoardContour(colorImage, preprocessedImage);
+                
+                if (bestContour == null)
+                {
+                    throw new Exception("No valid curved board contour found.");
+                }
+
+                // 3. Create warped board
+                Mat warpedBoard = WarpBoardToSquare(colorImage, bestContour);
+                // Save warped board for debugging
+                _debugHelper.SaveDebugImage(warpedBoard, "warped_board");
+
+
+                // 4. Analyze grid dimensions
+                var (rows, cols) = DetectGridDimensions(warpedBoard);
+
+                // 5. Debug visualization
+                SaveDebugImages(colorImage, bestContour, bestBounds);
+
+                return (warpedBoard.ToBitmap(), rows, cols);
+            }
+            catch (Exception ex)
+            {
+                _debugHelper.LogDebugMessage($"Curved board extraction failed: {ex.Message}");
+                throw new Exception("Failed to extract curved board from image", ex);
+            }
+        }
+
+        private Mat PreprocessImage(Mat colorImage)
+        {
+            _debugHelper.SaveDebugImage(colorImage, "original");
+
+            // Convert to grayscale
+            Mat gray = new Mat();
+            CvInvoke.CvtColor(colorImage, gray, ColorConversion.Bgr2Gray);
+            _debugHelper.SaveDebugImage(gray, "gray");
+
+            // Blur
+            Mat blurred = new Mat();
+            CvInvoke.GaussianBlur(gray, blurred, new Size(5, 5), 0);
+            _debugHelper.SaveDebugImage(blurred, "blurred");
+
+            // Threshold
+            Mat thresh = new Mat();
+            CvInvoke.AdaptiveThreshold(
+                blurred,
+                thresh,
+                255,
+                AdaptiveThresholdType.MeanC,
+                ThresholdType.BinaryInv,
+                11,
+                2);
+            _debugHelper.SaveDebugImage(thresh, "thresh");
+
+            // Morphological operations
+            Mat kernel = CvInvoke.GetStructuringElement(ElementShape.Rectangle, new Size(3, 3), new Point(-1, -1));
+            
+            Mat closed = new Mat();
+            CvInvoke.MorphologyEx(thresh, closed, MorphOp.Close, kernel, new Point(-1, -1), 2, BorderType.Default, new MCvScalar(1));
+
+            Mat dilated = new Mat();
+            CvInvoke.Dilate(closed, dilated, kernel, new Point(-1, -1), 1, BorderType.Default, new MCvScalar(1));
+            _debugHelper.SaveDebugImage(dilated, "dilated");
+
+            return dilated;
+        }
+
+        private (VectorOfPoint BestContour, Rectangle BestBounds) FindBestBoardContour(Mat colorImage, Mat preprocessedImage)
+        {
+            // Find contours
+            VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint();
+            CvInvoke.FindContours(
+                preprocessedImage,
+                contours,
+                null!,
+                RetrType.External,
+                ChainApproxMethod.ChainApproxSimple);
+
+            // Debug contours
+            Mat contourDebug = colorImage.Clone();
+            for (int i = 0; i < contours.Size; i++)
+            {
+                CvInvoke.DrawContours(contourDebug, contours, i, new MCvScalar(0, 255, 0), 2);
+            }
+            _debugHelper.SaveDebugImage(contourDebug, "all_contours_curved");
+
+            // Find best contour
+            double maxArea = 0;
+            VectorOfPoint bestContour = null;
+            Rectangle bestBounds = Rectangle.Empty;
+
+            for (int i = 0; i < contours.Size; i++)
+            {
+                using (VectorOfPoint contour = contours[i])
+                {
+                    if (!IsValidBoardContour(contour, colorImage, out Rectangle bounds)) 
+                        continue;
+
+                    double area = CvInvoke.ContourArea(contour);
+                    if (area > maxArea)
+                    {
+                        maxArea = area;
+                        bestContour = contour;
+                        bestBounds = bounds;
+                    }
+                }
+            }
+
+            return (bestContour, bestBounds);
+        }
+
+        private bool IsValidBoardContour(VectorOfPoint contour, Mat colorImage, out Rectangle bounds)
+        {
+            bounds = Rectangle.Empty;
+            double area = CvInvoke.ContourArea(contour);
+            
+            if (area < 1000) 
+                return false;
+
+            // Get minimum area rectangle
+            RotatedRect rotatedRect = CvInvoke.MinAreaRect(contour);
+            PointF[] rectPoints = rotatedRect.GetVertices();
+            bounds = CvInvoke.BoundingRectangle(Array.ConvertAll(rectPoints, p => new Point((int)p.X, (int)p.Y)));
+
+            // Check aspect ratio
+            double aspectRatio = (double)bounds.Width / bounds.Height;
+            if (aspectRatio < 0.7 || aspectRatio > 1.3) 
+                return false;
+
+            // Check relative area
+            double relativeArea = area / (colorImage.Width * colorImage.Height);
+            if (relativeArea < 0.1) 
+                return false;
+
+            return true;
+        }
+
+        private Mat WarpBoardToSquare(Mat colorImage, VectorOfPoint bestContour)
+        {
+            // Create mask
+            Mat mask = new Mat(colorImage.Size, DepthType.Cv8U, 1);
+            mask.SetTo(new MCvScalar(0));
+            CvInvoke.DrawContours(mask, new VectorOfVectorOfPoint(bestContour), 0, new MCvScalar(255), -1);
+            _debugHelper.SaveDebugImage(mask, "board_mask");
+
+            // Get corner points and create warped image
+            int boardSize = 450;
+            RotatedRect finalRect = CvInvoke.MinAreaRect(bestContour);
+            PointF[] corners = finalRect.GetVertices();
+            corners = OrderPointsF(corners);
+
+            PointF[] destPoints =
+            [
+                new PointF(0, 0),
+                new PointF(boardSize - 1, 0),
+                new PointF(boardSize - 1, boardSize - 1),
+                new PointF(0, boardSize - 1)
+            ];
+
+            Mat perspectiveMatrix = CvInvoke.GetPerspectiveTransform(corners, destPoints);
+            Mat warpedBoard = new Mat();
+            CvInvoke.WarpPerspective(colorImage, warpedBoard, perspectiveMatrix, new Size(boardSize, boardSize));
+
+            // Debug: save the warped board
+            _debugHelper.SaveDebugImage(warpedBoard, "warped_board");
+
+            return warpedBoard;
+        }
+
+        private void SaveDebugImages(Mat colorImage, VectorOfPoint bestContour, Rectangle bestBounds)
+        {
+            Mat finalDebug = colorImage.Clone();
+            CvInvoke.DrawContours(finalDebug, new VectorOfVectorOfPoint(bestContour), 0, new MCvScalar(0, 255, 0), 2);
+            CvInvoke.Rectangle(finalDebug, bestBounds, new MCvScalar(0, 0, 255), 2);
+            _debugHelper.SaveDebugImage(finalDebug, "final_curved_board");
+        }
+
+        private PointF[] OrderPointsF(PointF[] pts)
+        {
+            PointF[] rect = new PointF[4];
+            // Sum of coordinates: smallest -> top-left, largest -> bottom-right
+            var sorted = pts.OrderBy(p => p.X + p.Y).ToArray();
+            rect[0] = sorted[0];
+            rect[2] = sorted[sorted.Length - 1];
+
+            // Difference of coordinates: smallest -> top-right, largest -> bottom-left
+            var sortedDiff = pts.OrderBy(p => p.Y - p.X).ToArray();
+            rect[1] = sortedDiff[0];
+            rect[3] = sortedDiff[sortedDiff.Length - 1];
+
+            return rect;
+        }
     }
 }

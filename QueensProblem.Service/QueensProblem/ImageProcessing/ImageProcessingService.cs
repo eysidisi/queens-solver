@@ -39,7 +39,7 @@ namespace QueensProblem.Service.QueensProblem.ImageProcessing
                 var debugHelper = new DebugHelper(debugEnabled);
                 var colorAnalyzer = new ColorAnalyzer();
                 var boardDetector = new BoardDetector(debugHelper);
-                var boardProcessor = new BoardProcessor(colorAnalyzer, debugHelper);
+                var boardProcessor = new QueensBoardProcessor(colorAnalyzer, debugHelper);
                 var queenSolver = new QueensSolver();
 
                 // Extract the board from the image, optionally skipping warping

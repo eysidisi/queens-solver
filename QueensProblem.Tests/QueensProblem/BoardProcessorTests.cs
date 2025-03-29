@@ -12,14 +12,14 @@ namespace QueensProblem.Tests.Queens
     public class BoardProcessorTests
     {
         // Constants for directories and supported file types
-        private const string TestImagesDirectory = "TestImages";
+        private const string TestImagesDirectory = "QueensProblem/TestImages";
         private static readonly string[] SupportedExtensions = { ".png", ".jpg", ".jpeg", ".bmp" };
         
         // Dependencies needed for testing
         private readonly DebugHelper _debugHelper;
         private readonly ColorAnalyzer _colorAnalyzer;
         private readonly BoardDetector _boardDetector;
-        private readonly BoardProcessor _boardProcessor;
+        private readonly QueensBoardProcessor _boardProcessor;
         
         /// <summary>
         /// Constructor initializes common dependencies for all tests
@@ -30,7 +30,7 @@ namespace QueensProblem.Tests.Queens
             _debugHelper = new DebugHelper(false);
             _colorAnalyzer = new ColorAnalyzer();
             _boardDetector = new BoardDetector(_debugHelper);
-            _boardProcessor = new BoardProcessor(_colorAnalyzer, _debugHelper);
+            _boardProcessor = new QueensBoardProcessor(_colorAnalyzer, _debugHelper);
         }
 
         [Fact]

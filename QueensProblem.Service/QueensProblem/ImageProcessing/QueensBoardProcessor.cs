@@ -9,13 +9,13 @@ namespace QueensProblem.Service.QueensProblem.ImageProcessing
     /// <summary>
     /// Processes board images to extract cell information
     /// </summary>
-    public class BoardProcessor
+    public class QueensBoardProcessor
     {
         private readonly ColorAnalyzer _colorAnalyzer;
         private readonly DebugHelper _debugHelper;
         private int _debugImageCounter = 0;
 
-        public BoardProcessor(ColorAnalyzer colorAnalyzer, DebugHelper debugHelper)
+        public QueensBoardProcessor(ColorAnalyzer colorAnalyzer, DebugHelper debugHelper)
         {
             _colorAnalyzer = colorAnalyzer;
             _debugHelper = debugHelper;

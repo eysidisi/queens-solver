@@ -25,7 +25,7 @@ namespace QueensProblem.Tests.Queens
         private readonly DebugHelper _debugHelper;
         private readonly ColorAnalyzer _colorAnalyzer;
         private readonly BoardDetector _boardDetector;
-        private readonly BoardProcessor _boardProcessor;
+        private readonly QueensBoardProcessor _boardProcessor;
         private readonly QueensSolver _queensSolver;
         
         public ManualSolverTests()
@@ -34,7 +34,7 @@ namespace QueensProblem.Tests.Queens
             _debugHelper = new DebugHelper(true);
             _colorAnalyzer = new ColorAnalyzer();
             _boardDetector = new BoardDetector(_debugHelper);
-            _boardProcessor = new BoardProcessor(_colorAnalyzer, _debugHelper);
+            _boardProcessor = new QueensBoardProcessor(_colorAnalyzer, _debugHelper);
             _queensSolver = new QueensSolver();
             
             // Ensure output directory exists
