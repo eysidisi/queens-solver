@@ -427,10 +427,10 @@ namespace QueensProblem.Service.QueensProblem.ImageProcessing
 
                 // 3. Create warped board
                 Mat warpedBoard = WarpBoardToSquare(colorImage, bestContour);
-                // Save warped board for debugging
-                _debugHelper.SaveDebugImage(warpedBoard, "warped_board");
-
-
+                
+                // Save warped board with high quality
+                SaveHighQualityImage(warpedBoard, "warped_board_hq");
+                
                 // 4. Analyze grid dimensions
                 var (rows, cols) = DetectGridDimensions(warpedBoard);
 
@@ -609,6 +609,34 @@ namespace QueensProblem.Service.QueensProblem.ImageProcessing
             rect[3] = sortedDiff[sortedDiff.Length - 1];
 
             return rect;
+        }
+
+        // Add a high quality image saving method
+        private void SaveHighQualityImage(Mat image, string name)
+        {
+            if (!_debugHelper.IsDebugMode) return;
+            
+            string path = "debug_" + name + ".png";
+            
+            // Create image compression parameters for PNG with maximum quality
+            var compressionParams = new List<KeyValuePair<ImwriteFlags, int>>
+            {
+                new KeyValuePair<ImwriteFlags, int>(ImwriteFlags.PngCompression, 0), // 0 = no compression, maximum quality
+                new KeyValuePair<ImwriteFlags, int>(ImwriteFlags.PngStrategy, 0) // 0 = default strategy
+            };
+            
+            CvInvoke.Imwrite(path, image, compressionParams.ToArray());
+            _debugHelper.LogDebugMessage($"High quality image saved: {path}");
+            
+            // Also save in TIFF format for lossless quality
+            string tiffPath = "debug_" + name + ".tiff";
+            var tiffParams = new List<KeyValuePair<ImwriteFlags, int>>
+            {
+                new KeyValuePair<ImwriteFlags, int>(ImwriteFlags.TiffCompression, 1) // 1 = no compression
+            };
+            
+            CvInvoke.Imwrite(tiffPath, image, tiffParams.ToArray());
+            _debugHelper.LogDebugMessage($"Lossless TIFF image saved: {tiffPath}");
         }
     }
 }

@@ -21,7 +21,7 @@ namespace ZipProblem.Tests
             int rows = 3, cols = 3;
             ZipBoard board = new ZipBoard(rows, cols);
             board.SetNodeOrder(0, 0, 1);
-            board.SetupNeighbors((a, b) => true);
+            board.ResetAndSetupNeighbors((a, b) => true);
 
             ZipSolver solver = new ZipSolver(board);
             List<ZipNode> solution = solver.Solve();
@@ -46,7 +46,7 @@ namespace ZipProblem.Tests
                 (1, 1, 1, 2)
             };
 
-            board.SetupNeighbors((a, b) => !blockedConnections.Contains((a.Row, a.Col, b.Row, b.Col)) &&
+            board.ResetAndSetupNeighbors((a, b) => !blockedConnections.Contains((a.Row, a.Col, b.Row, b.Col)) &&
                                            !blockedConnections.Contains((b.Row, b.Col, a.Row, a.Col)));
 
             ZipSolver solver = new ZipSolver(board);
@@ -75,7 +75,7 @@ namespace ZipProblem.Tests
                 (4, 1, 4, 2)
             };
 
-            board.SetupNeighbors((a, b) => !blockedConnections.Contains((a.Row, a.Col, b.Row, b.Col)) &&
+            board.ResetAndSetupNeighbors((a, b) => !blockedConnections.Contains((a.Row, a.Col, b.Row, b.Col)) &&
                                            !blockedConnections.Contains((b.Row, b.Col, a.Row, a.Col)));
 
             ZipSolver solver = new ZipSolver(board);
@@ -110,7 +110,7 @@ namespace ZipProblem.Tests
                     (1, 5, 2, 5)
                 };
 
-            board.SetupNeighbors((a, b) =>
+            board.ResetAndSetupNeighbors((a, b) =>
                  !blockedConnections.Contains((a.Row, a.Col, b.Row, b.Col)) &&
                  !blockedConnections.Contains((b.Row, b.Col, a.Row, a.Col)));
 

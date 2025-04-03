@@ -30,39 +30,12 @@ namespace ZipProblem.Tests
             }
         }
 
-        private Mat CreateTestBoard(int rows, int columns, int size = 450)
-        {
-            Mat board = new Mat(size, size, DepthType.Cv8U, 3);
-            _disposableResources.Add(board);
-            board.SetTo(new MCvScalar(255, 255, 255)); // White background
-
-            // Draw horizontal lines
-            int cellHeight = size / rows;
-            for (int i = 0; i <= rows; i++)
-            {
-                CvInvoke.Line(board,
-                    new Point(0, i * cellHeight),
-                    new Point(size, i * cellHeight),
-                    new MCvScalar(0, 0, 0), 2);
-            }
-
-            // Draw vertical lines
-            int cellWidth = size / columns;
-            for (int i = 0; i <= columns; i++)
-            {
-                CvInvoke.Line(board,
-                    new Point(i * cellWidth, 0),
-                    new Point(i * cellWidth, size),
-                    new MCvScalar(0, 0, 0), 2);
-            }
-
-            return board;
-        }
-
-
         [Theory]
         [InlineData("zip_6x6_1.png", 6, 6)]
         [InlineData("zip_6x6_2.png", 6, 6)]
+        [InlineData("zip_6x6_3.png", 6, 6)]
+        [InlineData("zip_6x6_4.png", 6, 6)]
+        [InlineData("zip_7x7_1.png", 7, 7)]
         public void ExtractBoardAndAnalyze_WithRealImages_ShouldReturnCorrectDimensions(string imageName, int expectedRows, int expectedColumns)
         {
             // Arrange

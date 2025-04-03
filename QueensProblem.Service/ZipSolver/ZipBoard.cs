@@ -7,7 +7,7 @@
         public int Cols { get; private set; }
 
         // 2D array representing the board.
-        public ZipNode[,] Board { get; private set; }
+        public ZipNode[,] Nodes { get; private set; }
 
         // Mapping order numbers (if any) to nodes for quick lookup.
         public Dictionary<int, ZipNode> OrderMap { get; private set; }
@@ -16,7 +16,7 @@
         {
             Rows = rows;
             Cols = cols;
-            Board = new ZipNode[rows, cols];
+            Nodes = new ZipNode[rows, cols];
             OrderMap = new Dictionary<int, ZipNode>();
             InitializeBoard();
         }
@@ -28,7 +28,7 @@
             {
                 for (int j = 0; j < Cols; j++)
                 {
-                    Board[i, j] = new ZipNode(i, j);
+                    Nodes[i, j] = new ZipNode(i, j);
                 }
             }
         }
@@ -39,10 +39,10 @@
         {
             if (IsValidCoordinate(row, col))
             {
-                Board[row, col].Order = order;
+                Nodes[row, col].Order = order;
                 if (order != 0)
                 {
-                    OrderMap[order] = Board[row, col];
+                    OrderMap[order] = Nodes[row, col];
                 }
             }
         }
@@ -52,7 +52,7 @@
         {
             if (IsValidCoordinate(row, col))
             {
-                return Board[row, col];
+                return Nodes[row, col];
             }
             return null;
         }
@@ -66,8 +66,16 @@
         // Set up neighbors for each node.
         // The connectivityPredicate allows you to specify when two adjacent cells are connected.
         // For example, if there is a wall between two cells, connectivityPredicate would return false.
-        public void SetupNeighbors(Func<ZipNode, ZipNode, bool> connectivityPredicate)
+        public void ResetAndSetupNeighbors(Func<ZipNode, ZipNode, bool> connectivityPredicate)
         {
+            // Clear all existing neighbors.
+            for (int i = 0; i < Rows; i++)
+            {
+                for (int j = 0; j < Cols; j++)
+                {
+                    Nodes[i, j].Neighbors.Clear();
+                }
+            }
             // Define the four potential directions: up, down, left, right.
             int[] dRow = { -1, 1, 0, 0 };
             int[] dCol = { 0, 0, -1, 1 };
@@ -76,14 +84,14 @@
             {
                 for (int j = 0; j < Cols; j++)
                 {
-                    ZipNode current = Board[i, j];
+                    ZipNode current = Nodes[i, j];
                     for (int k = 0; k < dRow.Length; k++)
                     {
                         int newRow = i + dRow[k];
                         int newCol = j + dCol[k];
                         if (IsValidCoordinate(newRow, newCol))
                         {
-                            ZipNode neighbor = Board[newRow, newCol];
+                            ZipNode neighbor = Nodes[newRow, newCol];
                             // Only add as a neighbor if the connectivity rule allows it.
                             if (connectivityPredicate(current, neighbor))
                             {
@@ -93,6 +101,83 @@
                     }
                 }
             }
+        }
+/// <summary>
+/// Returns a more compact representation of blocked cells as a list of wall positions.
+/// Each tuple contains (row, col, isHorizontal) where:
+/// - row, col: coordinates of the cell
+/// - isHorizontal: true if wall is above the cell, false if wall is to the left
+/// </summary>
+public List<(int Row, int Col, bool IsHorizontal)> GetWalls()
+{
+    List<(int Row, int Col, bool IsHorizontal)> walls = new List<(int Row, int Col, bool IsHorizontal)>();
+    
+    for (int row = 0; row < Rows; row++)
+    {
+        for (int col = 0; col < Cols; col++)
+        {
+            ZipNode currentNode = Nodes[row, col];
+            
+            // Check for horizontal wall (with cell above)
+            if (row > 0)
+            {
+                ZipNode nodeAbove = Nodes[row - 1, col];
+                if (!currentNode.Neighbors.Contains(nodeAbove))
+                {
+                    walls.Add((row, col, true));
+                }
+            }
+            
+            // Check for vertical wall (with cell to the left)
+            if (col > 0)
+            {
+                ZipNode nodeLeft = Nodes[row, col - 1];
+                if (!currentNode.Neighbors.Contains(nodeLeft))
+                {
+                    walls.Add((row, col, false));
+                }
+            }
+        }
+    }
+    
+    return walls;
+}
+        public bool IsValid()
+        {
+            // check if numbers are unique also no missing numbers
+            HashSet<int> numbers = new HashSet<int>();
+            for (int i = 0; i < Rows; i++)
+            {
+                for (int j = 0; j < Cols; j++)
+                {
+                    int order = Nodes[i, j].Order;
+                    if (order != 0)
+                    {
+                        if (numbers.Contains(order))
+                        {
+                            return false; // Duplicate number found
+                        }
+                        numbers.Add(order);
+                    }
+                }
+            }
+
+            // Check if any missing number, for example if there's 1 and 3 but no 2
+            if (numbers.Count > 0)
+            {
+                int maxNumber = numbers.Max();
+
+                // Ensure we have a continuous sequence from 1 to maxNumber
+                for (int i = 1; i <= maxNumber; i++)
+                {
+                    if (!numbers.Contains(i))
+                    {
+                        return false; // Missing number in sequence
+                    }
+                }
+            }
+
+            return true;
         }
     }
 }

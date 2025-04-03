@@ -56,13 +56,37 @@
     <None Update="ZipProblem\ZipTestImages\zip_6x6_1.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="ZipProblem\ZipTestImages\zip_6x6_1_cropped.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="ZipProblem\ZipTestImages\zip_6x6_2.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="Resources\tessdata\eng.traineddata">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="ZipProblem\ZipTestImages\zip_6x6_2_cropped.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="ZipProblem\ZipTestImages\zip_6x6_3.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="ZipProblem\ZipTestImages\zip_6x6_3_cropped.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="ZipProblem\ZipTestImages\zip_6x6_4.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="ZipProblem\ZipTestImages\zip_6x6_4_cropped.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="ZipProblem\ZipTestImages\zip_6x6_cropped.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="ZipProblem\ZipTestImages\zip_7x7_1.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="ZipProblem\ZipTestImages\zip_7x7_1_cropped.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
