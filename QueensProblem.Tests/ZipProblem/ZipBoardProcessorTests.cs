@@ -193,7 +193,22 @@ namespace ZipProblem.Tests
                         },
                         new List<WallPosition>
                         {
-                            
+                            new WallPosition(1, 1, true),
+                            new WallPosition(1, 4, true),
+
+                            new WallPosition(5, 1, true),
+                            new WallPosition(5, 2, true),
+                            new WallPosition(5, 3, true),
+                            new WallPosition(5, 4, true),
+
+                            new WallPosition(1, 1, false),
+                            new WallPosition(1, 2, false),
+
+                            new WallPosition(1, 4, false),
+                            new WallPosition(1, 5, false),
+
+                            new WallPosition(4, 1, false),
+                            new WallPosition(4, 5, false),
                         }
                     );
 
