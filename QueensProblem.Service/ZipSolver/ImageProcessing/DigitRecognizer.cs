@@ -17,13 +17,10 @@ namespace QueensProblem.Service.ZipSolver.ImageProcessing
     {
         private readonly DebugHelper _debugHelper;
         private readonly TesseractEngine _tesseract;
-        private readonly ImagePreprocessor _preprocessor;
 
         public DigitRecognizer(DebugHelper debugHelper, string tessdataPath = null)
         {
             _debugHelper = debugHelper;
-            _preprocessor = new ImagePreprocessor(debugHelper);
-
             // Initialize tesseract
             if (string.IsNullOrEmpty(tessdataPath))
             {
@@ -56,7 +53,7 @@ namespace QueensProblem.Service.ZipSolver.ImageProcessing
                 };
 
                 // Preprocess the image for OCR
-                using (Mat processedImage = _preprocessor.PreprocessForOCR(image, parameters))
+                using (Mat processedImage = PreprocessForOCR(image, parameters))
                 {
                     _debugHelper.SaveDebugImage(processedImage, $"cell_{row}_{col}_processed");
                     
@@ -141,6 +138,58 @@ namespace QueensProblem.Service.ZipSolver.ImageProcessing
                     "is present in the tessdata directory, or install the Tesseract.Data.English NuGet package.");
             }
         }
+
+        private Mat PreprocessForOCR(Mat image, PreprocessingParameters parameters)
+        {
+            // Create a working copy
+            Mat processed = new Mat();
+            image.CopyTo(processed);
+
+            // 1. Resize the image so its height is approximately the target character height (32 pixels)
+            int targetHeight = 32;
+            double scale = (double)targetHeight / processed.Height;
+            Size newSize = new Size((int)(processed.Width * scale), targetHeight);
+            // Use a good interpolation method for enlarging/shrinking (bicubic)
+            CvInvoke.Resize(processed, processed, newSize, 0, 0, Inter.Cubic);
+
+            // 2. Convert to grayscale if needed
+            if (processed.NumberOfChannels > 1)
+            {
+                CvInvoke.CvtColor(processed, processed, ColorConversion.Bgr2Gray);
+            }
+
+            // 3. Apply Otsu's thresholding to create a binary image
+            Mat binary = new Mat();
+            CvInvoke.Threshold(processed, binary, 0, 255, ThresholdType.Otsu | ThresholdType.Binary);
+
+            // 4. Ensure the digit is dark on a white background (standard for OCR)
+            MCvScalar sum = CvInvoke.Sum(binary);
+            double whitePixelRatio = sum.V0 / (255.0 * binary.Width * binary.Height);
+            if (whitePixelRatio < 0.5)
+            {
+                CvInvoke.BitwiseNot(binary, binary);
+            }
+
+            // 5. Remove noise using morphological operations
+            int kernelSize = parameters.MorphKernelSize > 1 ? parameters.MorphKernelSize : 3;
+            Mat element = CvInvoke.GetStructuringElement(
+                ElementShape.Rectangle,
+                new Size(kernelSize, kernelSize),
+                new Point(-1, -1));
+
+            // Apply closing to remove noise
+            CvInvoke.MorphologyEx(binary, binary, MorphOp.Close, element, new Point(-1, -1), 1, BorderType.Default, new MCvScalar());
+
+            // Apply dilation if specified in parameters
+            if (parameters.DilateIterations > 0)
+            {
+                CvInvoke.MorphologyEx(binary, binary, MorphOp.Dilate, element, new Point(-1, -1),
+                    parameters.DilateIterations, BorderType.Default, new MCvScalar());
+            }
+
+            return binary;
+        }
+
 
         public void Dispose()
         {

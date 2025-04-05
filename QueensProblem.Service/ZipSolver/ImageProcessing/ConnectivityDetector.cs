@@ -3,7 +3,6 @@ using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using Emgu.CV.Util;
 using QueensProblem.Service.ZipProblem;
-using System;
 using System.Drawing;
 
 namespace QueensProblem.Service.ZipSolver.ImageProcessing
@@ -96,13 +95,6 @@ namespace QueensProblem.Service.ZipSolver.ImageProcessing
                 image.CopyTo(gray);
             }
 
-            // Auto-adjust binary threshold based on image histogram if needed
-            if (image.Width > 1000 || image.Height > 1000) // For high-resolution images
-            {
-                binaryThreshold = AutoAdjustThreshold(gray);
-                _debugHelper.LogDebugMessage($"Auto-adjusted binary threshold to {binaryThreshold} for high-resolution image");
-            }
-
             // Apply Gaussian blur to smooth out noise
             Mat blurred = new Mat();
             CvInvoke.GaussianBlur(gray, blurred, new Size(3, 3), 0);
@@ -120,69 +112,11 @@ namespace QueensProblem.Service.ZipSolver.ImageProcessing
             CvInvoke.BitwiseNot(processed, processed);
             _debugHelper.SaveDebugImage(processed, "binary_inverted");
 
-            // Apply closing and erosion for better wall detection
-            processed = ApplyMorphologicalOperations(processed, Math.Min(image.Width, image.Height));
-
             // Invert back so walls are black again
             CvInvoke.BitwiseNot(processed, processed);
             _debugHelper.SaveDebugImage(processed, "final_processed");
 
             return processed;
-        }
-
-        /// <summary>
-        /// Auto-adjust threshold based on image histogram
-        /// </summary>
-        private int AutoAdjustThreshold(Mat gray)
-        {
-            // Compute image histogram
-            Mat hist = new Mat();
-            float[] ranges = { 0, 256 };
-            using (VectorOfMat images = new VectorOfMat(gray))
-            {
-                CvInvoke.CalcHist(images, new int[] { 0 }, null, hist, new int[] { 64 }, ranges, false);
-            }
-
-            // Find histogram peaks to determine a better threshold
-            double minVal = 0, maxVal = 0;
-            Point minLoc = new Point(), maxLoc = new Point();
-            CvInvoke.MinMaxLoc(hist, ref minVal, ref maxVal, ref minLoc, ref maxLoc);
-
-            // Adjust threshold based on histogram peak locations
-            double peakPos = maxLoc.Y * 4; // scale back from 64 bins to 256 range
-            return (int)Math.Min(Math.Max(peakPos / 2, 30), 80); // Keep between 30-80
-        }
-
-        /// <summary>
-        /// Apply morphological operations to enhance wall detection
-        /// </summary>
-        private Mat ApplyMorphologicalOperations(Mat processed, int imageSize)
-        {
-            // Calculate kernel size based on image dimensions - large enough to close thin grid lines
-            int closingKernelSize = Math.Max(5, imageSize / 20);
-            _debugHelper.LogDebugMessage($"Using closing kernel size: {closingKernelSize}");
-
-            // Create a structuring element for closing operation
-            Mat closingElement = CvInvoke.GetStructuringElement(
-                ElementShape.Ellipse, // Elliptical element works better for connecting regions
-                new Size(closingKernelSize, closingKernelSize),
-                new Point(-1, -1));
-
-            // Apply a strong closing operation to connect white regions (dilate then erode)
-            Mat closed = new Mat();
-            CvInvoke.MorphologyEx(processed, closed, MorphOp.Close, closingElement, new Point(-1, -1), 2, BorderType.Default, new MCvScalar());
-            _debugHelper.SaveDebugImage(closed, "after_closing");
-
-            // Now erode to restore the thick walls somewhat
-            Mat smallElement = CvInvoke.GetStructuringElement(
-                ElementShape.Rectangle,
-                new Size(3, 3),
-                new Point(-1, -1));
-            Mat result = new Mat();
-            CvInvoke.MorphologyEx(closed, result, MorphOp.Erode, smallElement, new Point(-1, -1), 1, BorderType.Default, new MCvScalar());
-            _debugHelper.SaveDebugImage(result, "after_erode");
-
-            return result;
         }
 
         /// <summary>

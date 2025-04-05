@@ -1,8 +1,5 @@
 using System.Drawing;
 using Emgu.CV;
-using Emgu.CV.CvEnum;
-using Emgu.CV.Structure;
-using Emgu.CV.Util;
 using QueensProblem.Service.ZipProblem;
 using Tesseract;
 

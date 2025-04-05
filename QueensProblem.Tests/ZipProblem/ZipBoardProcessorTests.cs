@@ -41,7 +41,7 @@ namespace ZipProblem.Tests
                 }
             }
 
-            _debugHelper = new DebugHelper(true); // Enable debug mode for tests
+            _debugHelper = new DebugHelper(false); // Enable debug mode for tests
             _processor = new ZipBoardProcessor(_debugHelper);
 
             // Set up test images path
@@ -212,6 +212,43 @@ namespace ZipProblem.Tests
                         }
                     );
 
+                case "zip_7x7_1_cropped.png":
+                    return (
+                        new List<NumberPosition>
+                        {
+                            new NumberPosition(0, 0, 1),
+                            new NumberPosition(0, 3, 2),
+                            new NumberPosition(0, 6, 5)
+                        },
+                        new List<WallPosition>
+                        {
+                            new WallPosition(1, 0, true),
+                            new WallPosition(1, 3, true),
+                            new WallPosition(1, 4, false),
+                            new WallPosition(1, 5, true),
+                            new WallPosition(1, 6, true),
+                            new WallPosition(2, 1, true),
+                            new WallPosition(2, 2, false),
+                            new WallPosition(2, 4, false),
+                            new WallPosition(2, 5, true),
+                            new WallPosition(2, 6, false),
+                            new WallPosition(3, 2, false),
+                            new WallPosition(3, 3, true),
+                            new WallPosition(3, 3, false),
+                            new WallPosition(3, 6, false),
+                            new WallPosition(4, 2, false),
+                            new WallPosition(4, 3, false),
+                            new WallPosition(4, 5, true),
+                            new WallPosition(4, 6, false),
+                            new WallPosition(5, 2, false),
+                            new WallPosition(5, 3, true),
+                            new WallPosition(5, 6, false),
+                            new WallPosition(6, 1, true),
+                            new WallPosition(6, 2, true),
+                            new WallPosition(6, 5, true)
+                        }
+                    );
+
                 default:
                     throw new ArgumentException($"No expected test data defined for file: {imageFilename}");
             }
@@ -222,6 +259,7 @@ namespace ZipProblem.Tests
         [InlineData("zip_6x6_2_cropped.png", 6)]
         [InlineData("zip_6x6_3_cropped.png", 6)]
         [InlineData("zip_6x6_4_cropped.png", 6)]
+        [InlineData("zip_7x7_1_cropped.png", 7)]
         public void ProcessImage_DetectsCorrectNumbersAndWalls_Inline(string imageFilename, int gridSize)
         {
             // Arrange
