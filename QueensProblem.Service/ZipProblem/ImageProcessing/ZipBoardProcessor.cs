@@ -3,7 +3,7 @@ using Emgu.CV;
 using QueensProblem.Service.ZipProblem;
 using Tesseract;
 
-namespace QueensProblem.Service.ZipSolver.ImageProcessing
+namespace QueensProblem.Service.ZipProblem.ImageProcessing
 {
     public class ZipBoardProcessor : IDisposable
     {
@@ -24,6 +24,26 @@ namespace QueensProblem.Service.ZipSolver.ImageProcessing
             _connectivityDetector = new ConnectivityDetector(debugHelper);
             _circleDetector = new CircleDetector(debugHelper);
             _digitRecognizer = new DigitRecognizer(debugHelper, tessdataPath);
+        }
+
+        public ZipBoard ProcessImage(Bitmap boardImage, int numberOfCells)
+        {
+            // Convert Bitmap to Mat for internal processing
+            Mat colorImage = boardImage.ToMat();
+            _debugHelper.SaveDebugImage(colorImage, "input_board");
+
+            // Create and analyze the ZipBoard
+            var zipBoard = AnalyzeProcessedBoard(colorImage, numberOfCells);
+            // Add a senity check to ensure the board is valid. Numbers should be unique and in the range 1-9 and theyere can't be any missing numbers.
+            if (!zipBoard.IsValid())
+            {
+                throw new Exception("Invalid board detected. Please ensure all numbers are unique and in the range 1-9 with no missing numbers.");
+            }
+
+            // Detect walls between cells and update connectivity
+            _connectivityDetector.DetectWallsAndSetupConnectivity(colorImage, zipBoard, numberOfCells);
+
+            return zipBoard;
         }
 
         public ZipBoard ProcessImage(Mat colorImage, int numberOfCells)

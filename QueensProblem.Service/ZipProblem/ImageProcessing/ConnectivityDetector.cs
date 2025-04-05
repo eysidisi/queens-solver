@@ -5,7 +5,7 @@ using Emgu.CV.Util;
 using QueensProblem.Service.ZipProblem;
 using System.Drawing;
 
-namespace QueensProblem.Service.ZipSolver.ImageProcessing
+namespace QueensProblem.Service.ZipProblem.ImageProcessing
 {
     /// <summary>
     /// Detects walls and sets up connectivity between cells in a Zip board

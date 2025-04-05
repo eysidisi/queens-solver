@@ -1,4 +1,4 @@
-namespace QueensProblem.Service.ZipSolver.ImageProcessing
+namespace QueensProblem.Service.ZipProblem.ImageProcessing
 {
     // Class to hold detection results
     public class DetectionResult

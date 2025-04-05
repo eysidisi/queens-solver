@@ -1,4 +1,4 @@
-namespace QueensProblem.Service.ZipSolver.ImageProcessing
+namespace QueensProblem.Service.ZipProblem.ImageProcessing
 {
     /// <summary>
     /// Parameters for image preprocessing operations

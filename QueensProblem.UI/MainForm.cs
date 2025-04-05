@@ -19,12 +19,12 @@ namespace QueensProblem.UI
         private Bitmap capturedImage;
         private bool debugEnabled = true;
         private readonly ScreenCaptureService screenCaptureService;
-        private readonly ImageProcessingService imageProcessingService;
+        private readonly QueensImageProcessingService imageProcessingService;
 
         public MainForm()
         {
             screenCaptureService = new ScreenCaptureService();
-            imageProcessingService = new ImageProcessingService(debugEnabled);
+            imageProcessingService = new QueensImageProcessingService(debugEnabled);
             InitializeComponents();
         }
 

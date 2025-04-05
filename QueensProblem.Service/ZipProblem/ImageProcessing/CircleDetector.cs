@@ -5,7 +5,7 @@ using Emgu.CV.Util;
 using System;
 using System.Drawing;
 
-namespace QueensProblem.Service.ZipSolver.ImageProcessing
+namespace QueensProblem.Service.ZipProblem.ImageProcessing
 {
     /// <summary>
     /// Detects and extracts content from circles in images

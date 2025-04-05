@@ -8,7 +8,7 @@ using System.IO;
 using System.Linq;
 using Tesseract;
 
-namespace QueensProblem.Service.ZipSolver.ImageProcessing
+namespace QueensProblem.Service.ZipProblem.ImageProcessing
 {
     /// <summary>
     /// Recognizes digits in images using OCR 

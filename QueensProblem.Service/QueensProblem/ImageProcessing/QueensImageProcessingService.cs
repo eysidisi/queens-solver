@@ -1,19 +1,15 @@
 using Emgu.CV;
-using Emgu.CV.CvEnum;
 using QueensProblem.Service.QueensProblem.Algorithm;
-using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
-using System.Linq;
 
 namespace QueensProblem.Service.QueensProblem.ImageProcessing
 {
-    public class ImageProcessingService
+    public class QueensImageProcessingService
     {
         private readonly bool debugEnabled;
         
-        public ImageProcessingService(bool debugEnabled = false)
+        public QueensImageProcessingService(bool debugEnabled = false)
         {
             this.debugEnabled = debugEnabled;
         }

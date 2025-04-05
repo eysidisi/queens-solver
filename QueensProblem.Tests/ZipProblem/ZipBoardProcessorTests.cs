@@ -4,8 +4,9 @@ using System.Collections.Generic;
 using Emgu.CV;
 using QueensProblem.Service;
 using QueensProblem.Service.ZipProblem;
-using QueensProblem.Service.ZipSolver.ImageProcessing;
+using QueensProblem.Service.ZipProblem.ImageProcessing;
 using Xunit;
+using System.Drawing;
 
 namespace ZipProblem.Tests
 {
@@ -269,10 +270,10 @@ namespace ZipProblem.Tests
             // Get expected results based on file name
             var (expectedNumbers, expectedWalls) = GetExpectedData(imageFilename);
 
-            using (var image = CvInvoke.Imread(testImagePath))
+            using (var bitmap = new Bitmap(testImagePath))
             {
                 // Act
-                var zipBoard = _processor.ProcessImage(image, gridSize);
+                var zipBoard = _processor.ProcessImage(bitmap, gridSize);
 
                 // Assert number positions
                 Assert.Equal(expectedNumbers.Count, zipBoard.OrderMap.Count);
