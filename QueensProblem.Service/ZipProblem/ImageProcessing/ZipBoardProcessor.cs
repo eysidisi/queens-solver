@@ -5,26 +5,25 @@ using Tesseract;
 
 namespace QueensProblem.Service.ZipProblem.ImageProcessing
 {
-    public class ZipBoardProcessor : IDisposable
+    public class ZipBoardProcessor
     {
         private readonly DebugHelper _debugHelper;
         private readonly ConnectivityDetector _connectivityDetector;
         private readonly CircleDetector _circleDetector;
-        private readonly TesseractEngine _tesseract;
         private readonly DigitRecognizer _digitRecognizer;
 
         public ZipBoardProcessor(
             DebugHelper debugHelper,
-            DigitRecognizer digitRecognizer = null,
-            CircleDetector circleDetector = null,
-            ConnectivityDetector connectivityDetector = null)
+            DigitRecognizer digitRecognizer,
+            CircleDetector circleDetector,
+            ConnectivityDetector connectivityDetector)
         {
-            string tessdataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
             _debugHelper = debugHelper;
-            _connectivityDetector = new ConnectivityDetector(debugHelper);
-            _circleDetector = new CircleDetector(debugHelper);
-            _digitRecognizer = new DigitRecognizer(debugHelper, tessdataPath);
+            _digitRecognizer = digitRecognizer;
+            _circleDetector = circleDetector;
+            _connectivityDetector = connectivityDetector;
         }
+
 
         public ZipBoard ProcessImage(Bitmap boardImage, int numberOfCells)
         {
@@ -122,10 +121,6 @@ namespace QueensProblem.Service.ZipProblem.ImageProcessing
             return 0; // Return 0 if no number is detected or on error
         }
 
-        public void Dispose()
-        {
-            _tesseract?.Dispose();
-        }
     }
 }
 

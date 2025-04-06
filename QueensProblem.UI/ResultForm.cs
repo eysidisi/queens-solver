@@ -1,6 +1,8 @@
 using QueensProblem.Service;
 using QueensProblem.Service.QueensProblem.Algorithm;
+using QueensProblem.Service.ZipProblem;
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -13,48 +15,43 @@ namespace QueensProblem.UI
     {
         private readonly Bitmap resultImage;
         private readonly Queen[] queensSolution;
+        private readonly List<ZipNode> zipSolution;
         private readonly Rectangle originalScreenRegion;
         private readonly Form parentForm;
         private readonly MouseAutomationService mouseAutomation;
         private readonly Rectangle boardBounds;
+        private Panel buttonPanel;
 
-        public ResultForm(Bitmap resultImage, Queen[] queensSolution, Rectangle originalScreenRegion, Form parentForm)
-            : this(resultImage, queensSolution, originalScreenRegion, parentForm, null)
+        public ResultForm(Bitmap resultImage, Queen[] queensSolution, Rectangle originalScreenRegion, Form parentForm, Rectangle detectedBoardBounds)
+            : this(resultImage, queensSolution, null, originalScreenRegion, parentForm, detectedBoardBounds)
         {
         }
 
-        public ResultForm(Bitmap resultImage, Queen[] queensSolution, Rectangle originalScreenRegion, Form parentForm, Rectangle? detectedBoardBounds)
+        public ResultForm(Bitmap resultImage, List<ZipNode> zipSolution, Rectangle originalScreenRegion, Form parentForm, Rectangle detectedBoardBounds)
+            : this(resultImage, null, zipSolution, originalScreenRegion, parentForm, detectedBoardBounds)
+        {
+        }
+
+        private ResultForm(Bitmap resultImage, Queen[] queensSolution, List<ZipNode> zipSolution, Rectangle originalScreenRegion, Form parentForm, Rectangle detectedBoardBounds)
         {
             this.resultImage = resultImage;
             this.queensSolution = queensSolution;
+            this.zipSolution = zipSolution;
             this.originalScreenRegion = originalScreenRegion;
             this.parentForm = parentForm;
             this.mouseAutomation = new MouseAutomationService();
             
             // Store the detected board bounds or estimate them
-            this.boardBounds = detectedBoardBounds ?? EstimateBoardBounds();
+            this.boardBounds = detectedBoardBounds;
 
             InitializeComponents();
         }
 
-        private Rectangle EstimateBoardBounds()
-        {
-            // Apply a basic heuristic if no board detection information is available
-            // Assume a 5% margin around the board
-            int margin = Math.Min(resultImage.Width, resultImage.Height) / 20;
-            
-            return new Rectangle(
-                margin, 
-                margin, 
-                resultImage.Width - (margin * 2), 
-                resultImage.Height - (margin * 2)
-            );
-        }
 
         private void InitializeComponents()
         {
             // Set up the form
-            this.Text = "Queens Problem Solution";
+            this.Text = "Problem Solution";
             this.Size = new Size(800, 600);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.Sizable;
@@ -68,7 +65,7 @@ namespace QueensProblem.UI
             };
 
             // Create panel for buttons
-            Panel buttonPanel = new Panel
+            buttonPanel = new Panel
             {
                 Dock = DockStyle.Bottom,
                 Height = 60
@@ -83,20 +80,10 @@ namespace QueensProblem.UI
                 Location = new Point(10, 10)
             };
 
-            // Create click solution button
-            Button clickSolutionButton = new Button
-            {
-                Text = "Auto-Click Solution",
-                Width = 150,
-                Height = 40,
-                Location = new Point(140, 10),
-                BackColor = Color.LightGreen
-            };
-
             // Add status label
             Label statusLabel = new Label
             {
-                Text = "Ready to auto-click solution",
+                Text = "Ready to auto-solve",
                 Dock = DockStyle.Bottom,
                 Height = 30,
                 TextAlign = ContentAlignment.MiddleLeft,
@@ -104,13 +91,51 @@ namespace QueensProblem.UI
                 BackColor = Color.LightGray
             };
 
-            // Configure button event handlers
+            int buttonXPosition = 140;
+
+            // Create click solution button for Queens problem if we have a solution
+            if (queensSolution != null)
+            {
+                Button clickSolutionButton = new Button
+                {
+                    Text = "Auto-Click Queens Solution",
+                    Width = 180,
+                    Height = 40,
+                    Location = new Point(buttonXPosition, 10),
+                    BackColor = Color.LightGreen
+                };
+                
+                // Configure button event handlers
+                clickSolutionButton.Click += async (s, e) => await AutoClickQueensSolution(clickSolutionButton, saveButton, statusLabel);
+                
+                buttonPanel.Controls.Add(clickSolutionButton);
+                buttonXPosition += 190;
+            }
+            
+            // Create solve zip button if we have a zip solution
+            if (zipSolution != null)
+            {
+                Button solveZipButton = new Button
+                {
+                    Text = "Auto-Solve Zip Solution",
+                    Width = 180,
+                    Height = 40,
+                    Location = new Point(buttonXPosition, 10),
+                    BackColor = Color.LightBlue
+                };
+                
+                // Configure button event handlers
+                solveZipButton.Click += async (s, e) => await AutoSolveZipSolution(solveZipButton, saveButton, statusLabel);
+                
+                buttonPanel.Controls.Add(solveZipButton);
+                buttonXPosition += 190;
+            }
+
+            // Configure save button event handler
             saveButton.Click += (s, e) => SaveImage();
-            clickSolutionButton.Click += async (s, e) => await AutoClickSolution(clickSolutionButton, saveButton, statusLabel);
 
             // Add controls to the form
             buttonPanel.Controls.Add(saveButton);
-            buttonPanel.Controls.Add(clickSolutionButton);
             
             this.Controls.Add(resultBox);
             this.Controls.Add(buttonPanel);
@@ -123,7 +148,7 @@ namespace QueensProblem.UI
             {
                 saveDialog.Filter = "PNG Image|*.png|JPEG Image|*.jpg|Bitmap Image|*.bmp";
                 saveDialog.Title = "Save Solution Image";
-                saveDialog.FileName = "queens_solution.png";
+                saveDialog.FileName = "solution.png";
 
                 if (saveDialog.ShowDialog() == DialogResult.OK)
                 {
@@ -147,7 +172,7 @@ namespace QueensProblem.UI
             }
         }
 
-        private async Task AutoClickSolution(Button clickButton, Button saveButton, Label statusLabel)
+        private async Task AutoClickQueensSolution(Button clickButton, Button saveButton, Label statusLabel)
         {
             if (originalScreenRegion.IsEmpty)
             {
@@ -157,9 +182,8 @@ namespace QueensProblem.UI
             }
 
             // Disable buttons during auto-clicking
-            clickButton.Enabled = false;
-            saveButton.Enabled = false;
-            statusLabel.Text = "Auto-clicking solution in progress...";
+            DisableButtons(buttonPanel);
+            statusLabel.Text = "Auto-clicking Queens solution in progress...";
             
             // Hide this form and the parent form
             this.WindowState = FormWindowState.Minimized;
@@ -194,8 +218,79 @@ namespace QueensProblem.UI
                 parentForm.WindowState = FormWindowState.Normal;
                 
                 // Re-enable buttons
-                clickButton.Enabled = true;
-                saveButton.Enabled = true;
+                EnableButtons(buttonPanel);
+            }
+        }
+        
+        private async Task AutoSolveZipSolution(Button solveButton, Button saveButton, Label statusLabel)
+        {
+            if (originalScreenRegion.IsEmpty)
+            {
+                MessageBox.Show("No original screen region available. Please capture a screen region first.",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            // Disable buttons during auto-solving
+            DisableButtons(buttonPanel);
+            statusLabel.Text = "Auto-solving Zip solution in progress...";
+            
+            // Hide this form and the parent form
+            this.WindowState = FormWindowState.Minimized;
+            parentForm.WindowState = FormWindowState.Minimized;
+            
+            // Give time for forms to minimize
+            await Task.Delay(100);
+            
+            try
+            {
+                // Pass the detected board bounds to the mouse automation service
+                await mouseAutomation.DragBetweenZipNodes(
+                    zipSolution, 
+                    originalScreenRegion,
+                    delayBetweenDrags: 1,
+                    boardBounds: boardBounds);
+                
+                statusLabel.Text = "Auto-solving Zip completed successfully!";
+                statusLabel.BackColor = Color.LightGreen;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error during auto-solving Zip: {ex.Message}", 
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                statusLabel.Text = "Auto-solving Zip failed!";
+                statusLabel.BackColor = Color.LightPink;
+            }
+            finally
+            {
+                // Restore windows
+                this.WindowState = FormWindowState.Normal;
+                parentForm.WindowState = FormWindowState.Normal;
+                
+                // Re-enable buttons
+                EnableButtons(buttonPanel);
+            }
+        }
+        
+        private void DisableButtons(Panel panel)
+        {
+            foreach (Control control in panel.Controls)
+            {
+                if (control is Button button)
+                {
+                    button.Enabled = false;
+                }
+            }
+        }
+        
+        private void EnableButtons(Panel panel)
+        {
+            foreach (Control control in panel.Controls)
+            {
+                if (control is Button button)
+                {
+                    button.Enabled = true;
+                }
             }
         }
     }

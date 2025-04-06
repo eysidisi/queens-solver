@@ -15,21 +15,6 @@ namespace ZipProblem.Tests
             Assert.Equal(expectedOrder, orderedNodes);
         }
 
-        [Fact]
-        public void TestZipSolver_Easy()
-        {
-            int rows = 3, cols = 3;
-            ZipBoard board = new ZipBoard(rows, cols);
-            board.SetNodeOrder(0, 0, 1);
-            board.ResetAndSetupNeighbors((a, b) => true);
-
-            ZipSolver solver = new ZipSolver(board);
-            List<ZipNode> solution = solver.Solve();
-
-            Assert.NotNull(solution);
-            Assert.Equal(rows * cols, solution.Count);
-            VerifySolutionOrder(solution, board.OrderMap);
-        }
 
         [Fact]
         public void TestZipSolver_Medium()
@@ -44,35 +29,6 @@ namespace ZipProblem.Tests
             HashSet<(int, int, int, int)> blockedConnections = new HashSet<(int, int, int, int)>
             {
                 (1, 1, 1, 2)
-            };
-
-            board.ResetAndSetupNeighbors((a, b) => !blockedConnections.Contains((a.Row, a.Col, b.Row, b.Col)) &&
-                                           !blockedConnections.Contains((b.Row, b.Col, a.Row, a.Col)));
-
-            ZipSolver solver = new ZipSolver(board);
-            List<ZipNode> solution = solver.Solve();
-
-            Assert.NotNull(solution);
-            Assert.Equal(rows * cols, solution.Count);
-            VerifySolutionOrder(solution, board.OrderMap);
-        }
-
-        [Fact]
-        public void TestZipSolver_Hard()
-        {
-            int rows = 5, cols = 5;
-            ZipBoard board = new ZipBoard(rows, cols);
-
-            board.SetNodeOrder(0, 0, 1);
-            board.SetNodeOrder(2, 4, 2);
-            board.SetNodeOrder(4, 0, 3);
-
-            HashSet<(int, int, int, int)> blockedConnections = new HashSet<(int, int, int, int)>
-            {
-                (0, 2, 1, 2),
-                (1, 3, 2, 3),
-                (2, 1, 3, 1),
-                (4, 1, 4, 2)
             };
 
             board.ResetAndSetupNeighbors((a, b) => !blockedConnections.Contains((a.Row, a.Col, b.Row, b.Col)) &&

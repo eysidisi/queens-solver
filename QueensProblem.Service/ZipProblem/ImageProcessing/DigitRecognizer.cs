@@ -18,19 +18,15 @@ namespace QueensProblem.Service.ZipProblem.ImageProcessing
         private readonly DebugHelper _debugHelper;
         private readonly TesseractEngine _tesseract;
 
-        public DigitRecognizer(DebugHelper debugHelper, string tessdataPath = null)
+        public DigitRecognizer(DebugHelper debugHelper, string tessdataPath)
         {
             _debugHelper = debugHelper;
             // Initialize tesseract
-            if (string.IsNullOrEmpty(tessdataPath))
-            {
-                tessdataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
-            }
 
             EnsureTessDataExists(tessdataPath);
-            
+
             _tesseract = new TesseractEngine(tessdataPath, "eng", EngineMode.Default);
-            
+
             // Configure Tesseract for digit recognition
             _tesseract.SetVariable("tessedit_char_whitelist", "123456789");
             _tesseract.SetVariable("classify_bln_numeric_mode", "1");
@@ -56,9 +52,9 @@ namespace QueensProblem.Service.ZipProblem.ImageProcessing
                 using (Mat processedImage = PreprocessForOCR(image, parameters))
                 {
                     _debugHelper.SaveDebugImage(processedImage, $"cell_{row}_{col}_processed");
-                    
+
                     List<DetectionResult> results = new List<DetectionResult>();
-                    
+
                     // Convert to bitmap for Tesseract
                     using (Bitmap bmp = processedImage.ToBitmap())
                     using (var pix = Pix.LoadFromMemory(ImageToByte(bmp)))
@@ -196,4 +192,4 @@ namespace QueensProblem.Service.ZipProblem.ImageProcessing
             _tesseract?.Dispose();
         }
     }
-} 
+}

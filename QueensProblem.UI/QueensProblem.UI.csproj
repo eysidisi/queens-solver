@@ -14,4 +14,10 @@
     <ProjectReference Include="..\QueensProblem.Service\QueensProblem.Service.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Resources\tessdata\eng.traineddata">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

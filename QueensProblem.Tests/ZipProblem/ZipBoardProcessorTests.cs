@@ -6,11 +6,10 @@ using QueensProblem.Service;
 using QueensProblem.Service.ZipProblem;
 using QueensProblem.Service.ZipProblem.ImageProcessing;
 using Xunit;
-using System.Drawing;
 
 namespace ZipProblem.Tests
 {
-    public class ZipBoardProcessorTests : IDisposable
+    public class ZipBoardProcessorTests 
     {
         private readonly DebugHelper _debugHelper;
         private readonly ZipBoardProcessor _processor;
@@ -43,7 +42,11 @@ namespace ZipProblem.Tests
             }
 
             _debugHelper = new DebugHelper(false); // Enable debug mode for tests
-            _processor = new ZipBoardProcessor(_debugHelper);
+            // Initialize the ZipBoardProcessor with dependencies
+            var digitRecognizer = new DigitRecognizer(_debugHelper,tessdataPath);
+            var circleDetector = new CircleDetector(_debugHelper);
+            var connectivityDetector = new ConnectivityDetector(_debugHelper);
+            _processor = new ZipBoardProcessor(_debugHelper, digitRecognizer, circleDetector, connectivityDetector);
 
             // Set up test images path
             _testImagesPath = Path.Combine(AppContext.BaseDirectory, "ZipProblem/ZipTestImages");
@@ -53,10 +56,6 @@ namespace ZipProblem.Tests
             }
         }
 
-        public void Dispose()
-        {
-            _processor.Dispose();
-        }
 
         // Define wall position class for test data
         public class WallPosition
@@ -270,10 +269,10 @@ namespace ZipProblem.Tests
             // Get expected results based on file name
             var (expectedNumbers, expectedWalls) = GetExpectedData(imageFilename);
 
-            using (var bitmap = new Bitmap(testImagePath))
+            using (var image = CvInvoke.Imread(testImagePath))
             {
                 // Act
-                var zipBoard = _processor.ProcessImage(bitmap, gridSize);
+                var zipBoard = _processor.ProcessImage(image, gridSize);
 
                 // Assert number positions
                 Assert.Equal(expectedNumbers.Count, zipBoard.OrderMap.Count);
