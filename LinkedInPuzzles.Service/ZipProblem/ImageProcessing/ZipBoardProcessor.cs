@@ -103,12 +103,12 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
         {
             try
             {
-                if (!_circleDetector.ContainsCircle(cellMat))
+                (var circleExist, var extractedContent) = _circleDetector.FindAndExtractCircle(cellMat);
+                if (!circleExist)
                 {
                     return 0;
                 }
-                var imageInCell = _circleDetector.ExtractCircleContent(cellMat);
-                return _digitRecognizer.RecognizeDigit(imageInCell, row, col);
+                return _digitRecognizer.RecognizeDigit(extractedContent, row, col);
 
             }
             catch (Exception ex)

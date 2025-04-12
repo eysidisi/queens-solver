@@ -20,7 +20,6 @@ namespace LinkedInPuzzles.UI
         private readonly QueensImageProcessingService queensImageProcessingService;
         private readonly ZipImageProcessingService zipImageProcessingService;
         private enum ProblemType { Queens, Zip }
-        private CheckBox highQualityCheckbox;
 
         public MainForm()
         {
@@ -121,16 +120,6 @@ namespace LinkedInPuzzles.UI
                 BackColor = Color.LightGreen
             };
             browseButton.Click += BrowseButton_Click;
-
-            // Create high quality checkbox
-            highQualityCheckbox = new CheckBox
-            {
-                Text = "High Quality Capture",
-                Location = new Point(340, 20),
-                AutoSize = true,
-                Checked = true
-            };
-            topPanel.Controls.Add(highQualityCheckbox);
 
             // Create preview panel
             Panel previewPanel = new Panel
@@ -243,15 +232,8 @@ namespace LinkedInPuzzles.UI
                         // Store the original screen region for automated clicking later
                         originalScreenRegion = selectionForm.SelectedRegion;
 
-                        // Capture the selected region with appropriate quality
-                        if (highQualityCheckbox.Checked)
-                        {
-                            capturedImage = screenCaptureService.CaptureScreenRegionHighQuality(originalScreenRegion);
-                        }
-                        else
-                        {
-                            capturedImage = screenCaptureService.CaptureScreenRegion(originalScreenRegion);
-                        }
+                        // Capture the selected region with high quality
+                        capturedImage = screenCaptureService.CaptureScreenRegionHighQuality(originalScreenRegion);
 
                         if (capturedImage != null)
                         {
@@ -266,8 +248,7 @@ namespace LinkedInPuzzles.UI
                             // Display resolution info in status
                             statusLabel.Text = $"Captured region: {resInfo.Width}x{resInfo.Height} pixels, " +
                                             $"{resInfo.HorizontalDpi:F0} DPI, " +
-                                            $"{resInfo.PhysicalWidthInches:F1}\"x{resInfo.PhysicalHeightInches:F1}\"" +
-                                            (highQualityCheckbox.Checked ? " (High Quality)" : "");
+                                            $"{resInfo.PhysicalWidthInches:F1}\"x{resInfo.PhysicalHeightInches:F1}\"";
 
                         }
                         else
@@ -305,15 +286,8 @@ namespace LinkedInPuzzles.UI
                 {
                     try
                     {
-                        // Load the selected image with appropriate quality
-                        if (highQualityCheckbox.Checked)
-                        {
-                            capturedImage = screenCaptureService.LoadHighQualityImage(openFileDialog.FileName);
-                        }
-                        else
-                        {
-                            capturedImage = new Bitmap(openFileDialog.FileName);
-                        }
+                        // Load the selected image with high quality
+                        capturedImage = screenCaptureService.LoadHighQualityImage(openFileDialog.FileName);
 
                         // Get resolution information
                         var resInfo = screenCaptureService.GetResolutionInfo(capturedImage);
@@ -326,8 +300,7 @@ namespace LinkedInPuzzles.UI
                         // Display resolution info in status
                         statusLabel.Text = $"Loaded image: {resInfo.Width}x{resInfo.Height} pixels, " +
                                        $"{resInfo.HorizontalDpi:F0} DPI, " +
-                                       $"{resInfo.PhysicalWidthInches:F1}\"x{resInfo.PhysicalHeightInches:F1}\"" +
-                                       (highQualityCheckbox.Checked ? " (High Quality)" : "");
+                                       $"{resInfo.PhysicalWidthInches:F1}\"x{resInfo.PhysicalHeightInches:F1}\"";
 
                         // Suggest resolution adjustment if too high
                         if (resInfo.Width > 1000 || resInfo.Height > 1000)
