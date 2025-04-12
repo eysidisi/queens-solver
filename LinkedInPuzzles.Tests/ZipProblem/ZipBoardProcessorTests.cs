@@ -2,7 +2,7 @@ using Emgu.CV;
 using LinkedInPuzzles.Service;
 using LinkedInPuzzles.Service.ZipProblem.ImageProcessing;
 
-namespace ZipProblem.Tests
+namespace LinkedInPuzzles.Tests.ZipProblem
 {
     public class ZipBoardProcessorTests
     {

@@ -73,7 +73,7 @@ namespace LinkedInPuzzles.Tests.ZipProblem
 
             Console.WriteLine($"Using tessdata path: {tessdataPath}");
 
-            _debugHelper = new DebugHelper(true); // Enable debugging for tests
+            _debugHelper = new DebugHelper(false); // Enable debugging for tests
 
             // Initialize required components
             _digitRecognizer = new DigitRecognizer(_debugHelper, tessdataPath);
@@ -112,7 +112,7 @@ namespace LinkedInPuzzles.Tests.ZipProblem
         [InlineData("zip_6x6_3.png")]
         [InlineData("zip_6x6_4.png")]
         [InlineData("zip_7x7_1.png")]
-        public void ProcessAndSolveZipPuzzle_ShouldReturnValidSolution(string imageFilename)
+        public void ProcessAndSolveZipPuzzle(string imageFilename)
         {
             // Arrange
             string testImagePath = Path.Combine(_testImagesPath, imageFilename);
@@ -143,18 +143,18 @@ namespace LinkedInPuzzles.Tests.ZipProblem
                 _debugHelper.LogDebugMessage($"Result image saved to: {resultPath}");
 
                 // Only try to display the image when in debug mode
-                try
-                {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = resultPath,
-                        UseShellExecute = true
-                    });
-                }
-                catch (Exception ex)
-                {
-                    _debugHelper.LogDebugMessage($"Unable to display result image: {ex.Message}");
-                }
+                //try
+                //{
+                //    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                //    {
+                //        FileName = resultPath,
+                //        UseShellExecute = true
+                //    });
+                //}
+                //catch (Exception ex)
+                //{
+                //    _debugHelper.LogDebugMessage($"Unable to display result image: {ex.Message}");
+                //}
             }
         }
 

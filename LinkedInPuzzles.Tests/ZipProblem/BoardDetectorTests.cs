@@ -5,7 +5,7 @@ using LinkedInPuzzles.Service;
 using LinkedInPuzzles.Service.QueensProblem.ImageProcessing;
 using System.Drawing;
 
-namespace ZipProblem.Tests
+namespace LinkedInPuzzles.Tests.ZipProblem
 {
     public class BoardDetectorTests : IDisposable
     {

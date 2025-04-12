@@ -28,7 +28,7 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
             _tesseract.SetVariable("classify_bln_numeric_mode", "1");
         }
 
-        public int RecognizeDigit(Mat image, int row, int col)
+        public int RecognizeDigit(Mat image)
         {
             try
             {
@@ -47,7 +47,7 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
                 // Preprocess the image for OCR
                 using (Mat processedImage = PreprocessForOCR(image, parameters))
                 {
-                    _debugHelper.SaveDebugImage(processedImage, $"cell_{row}_{col}_processed");
+                    _debugHelper.SaveDebugImage(processedImage, $"cell_processed_{Random.Shared.Next()}");
 
                     List<DetectionResult> results = new List<DetectionResult>();
 
@@ -75,7 +75,7 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
                         else
                         {
                             // Clean the text and try parsing again
-                            string cleanedText = new string(text.Where(c => char.IsDigit(c)).ToArray());
+                            string cleanedText = new string(text.Where(char.IsDigit).ToArray());
                             if (!string.IsNullOrEmpty(cleanedText) &&
                                 int.TryParse(cleanedText, out number))
                             {
@@ -138,9 +138,9 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
             image.CopyTo(processed);
 
             // 1. Resize the image so its height is approximately the target character height (32 pixels)
-            int targetHeight = 32;
-            double scale = (double)targetHeight / processed.Height;
-            Size newSize = new Size((int)(processed.Width * scale), targetHeight);
+            int targetSize = 32;
+            double scale = (double)targetSize / processed.Height;
+            Size newSize = new Size((int)(processed.Width * scale), targetSize);
             // Use a good interpolation method for enlarging/shrinking (bicubic)
             CvInvoke.Resize(processed, processed, newSize, 0, 0, Inter.Cubic);
 

@@ -6,10 +6,8 @@
         public int Rows { get; private set; }
         public int Cols { get; private set; }
 
-        // 2D array representing the board.
         public ZipNode[,] Nodes { get; private set; }
 
-        // Mapping order numbers (if any) to nodes for quick lookup.
         public Dictionary<int, ZipNode> OrderMap { get; private set; }
 
         public ZipBoard(int rows, int cols)
@@ -21,7 +19,6 @@
             InitializeBoard();
         }
 
-        // Create all nodes with default order 0.
         private void InitializeBoard()
         {
             for (int i = 0; i < Rows; i++)
@@ -33,8 +30,6 @@
             }
         }
 
-        // Set the fixed order for a particular cell.
-        // If order is non-zero, it is added to the OrderMap.
         public void SetNodeOrder(int row, int col, int order)
         {
             if (IsValidCoordinate(row, col))
@@ -47,7 +42,6 @@
             }
         }
 
-        // Helper method to get a node at the specified coordinate.
         public ZipNode GetNode(int row, int col)
         {
             if (IsValidCoordinate(row, col))
@@ -57,15 +51,11 @@
             return null;
         }
 
-        // Check if the coordinates are within the board bounds.
         private bool IsValidCoordinate(int row, int col)
         {
             return row >= 0 && row < Rows && col >= 0 && col < Cols;
         }
 
-        // Set up neighbors for each node.
-        // The connectivityPredicate allows you to specify when two adjacent cells are connected.
-        // For example, if there is a wall between two cells, connectivityPredicate would return false.
         public void ResetAndSetupNeighbors(Func<ZipNode, ZipNode, bool> connectivityPredicate)
         {
             // Clear all existing neighbors.
@@ -142,10 +132,17 @@
 
             return walls;
         }
-        public bool IsValid()
+
+        /// <summary>
+        /// Validates the board configuration and throws exceptions with detailed messages for any validation failures.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">Thrown when the board configuration is invalid with details about the specific issue.</exception>
+        public void ValidateBoard()
         {
             // check if numbers are unique also no missing numbers
             HashSet<int> numbers = new HashSet<int>();
+            Dictionary<int, (int Row, int Col)> numberPositions = new Dictionary<int, (int Row, int Col)>();
+
             for (int i = 0; i < Rows; i++)
             {
                 for (int j = 0; j < Cols; j++)
@@ -155,9 +152,12 @@
                     {
                         if (numbers.Contains(order))
                         {
-                            return false; // Duplicate number found
+                            var existingPos = numberPositions[order];
+                            throw new InvalidOperationException(
+                                $"Duplicate number {order} found at positions [{existingPos.Row},{existingPos.Col}] and [{i},{j}]");
                         }
                         numbers.Add(order);
+                        numberPositions[order] = (i, j);
                     }
                 }
             }
@@ -172,12 +172,24 @@
                 {
                     if (!numbers.Contains(i))
                     {
-                        return false; // Missing number in sequence
+                        throw new InvalidOperationException(
+                            $"Missing number {i} in sequence. The sequence must be continuous from 1 to {maxNumber}");
                     }
                 }
             }
+        }
 
-            return true;
+        public bool IsValid()
+        {
+            try
+            {
+                ValidateBoard();
+                return true;
+            }
+            catch (InvalidOperationException)
+            {
+                return false;
+            }
         }
     }
 }

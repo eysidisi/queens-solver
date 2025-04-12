@@ -1,6 +1,6 @@
 ﻿using LinkedInPuzzles.Service.ZipProblem;
 
-namespace ZipProblem.Tests
+namespace LinkedInPuzzles.Tests.ZipProblem
 {
     public class ZipSolverTests
     {

@@ -27,10 +27,10 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
             int cellWidth = image.Width / numberOfCells;
 
             // Calculate adaptive parameters based on image resolution
-            int numSamplePoints = Math.Max(10, Math.Min(20, cellWidth / 10)); // Scale sample points with cell width
+            int numSamplePoints = Math.Max(20,  cellWidth / 10); // Scale sample points with cell width
             int borderOffset = Math.Max(2, Math.Min(5, Math.Min(cellWidth, cellHeight) / 30)); // Scale border check range with cell size
             int wallDetectionThreshold = Math.Max(3, numSamplePoints / 3); // At least 1/3 of sample points should be dark
-            int binaryThreshold = 50; // Default threshold
+            int binaryThreshold = 150; // Default threshold
 
             // Preprocess the image to enhance wall detection
             Mat processed = PreprocessForWallDetection(image, binaryThreshold);
@@ -72,9 +72,12 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
             });
 
             // Generate visualization
-            Mat wallVisualization = GenerateWallVisualization(image, zipBoard, numberOfCells,
-                cellWidth, cellHeight, horizontalWalls, verticalWalls);
-            _debugHelper.SaveDebugImage(wallVisualization, "detected_walls");
+            if (_debugHelper.IsDebugMode)
+            {
+                Mat wallVisualization = GenerateWallVisualization(image, zipBoard, numberOfCells,
+                    cellWidth, cellHeight, horizontalWalls, verticalWalls);
+                _debugHelper.SaveDebugImage(wallVisualization, "detected_walls");
+            }
         }
 
         /// <summary>
@@ -100,21 +103,9 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
             // Threshold to detect dark lines
             Mat binary = new Mat();
             CvInvoke.Threshold(blurred, binary, binaryThreshold, 255, ThresholdType.Binary);
-            _debugHelper.SaveDebugImage(binary, "binary_original");
+            _debugHelper.SaveDebugImage(binary, "PreprocessForWallDetection_binary_original");
 
-            // Create a copy for morphological operations
-            Mat processed = new Mat();
-            binary.CopyTo(processed);
-
-            // Invert the image so walls are white and background is black
-            CvInvoke.BitwiseNot(processed, processed);
-            _debugHelper.SaveDebugImage(processed, "binary_inverted");
-
-            // Invert back so walls are black again
-            CvInvoke.BitwiseNot(processed, processed);
-            _debugHelper.SaveDebugImage(processed, "final_processed");
-
-            return processed;
+            return binary;
         }
 
         /// <summary>
@@ -153,7 +144,7 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
                                     // Check if pixel is dark (part of a wall)
                                     byte* ptr = (byte*)processed.DataPointer;
                                     int idx = sampleY * processed.Step + x;
-                                    if (ptr[idx] < 128)
+                                    if (ptr[idx] == 0)
                                     {
                                         thickness++;
                                     }
