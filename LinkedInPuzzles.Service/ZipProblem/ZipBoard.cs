@@ -179,18 +179,6 @@
             }
         }
 
-        public bool IsValid()
-        {
-            try
-            {
-                ValidateBoard();
-                return true;
-            }
-            catch (InvalidOperationException)
-            {
-                return false;
-            }
-        }
     }
 }
 

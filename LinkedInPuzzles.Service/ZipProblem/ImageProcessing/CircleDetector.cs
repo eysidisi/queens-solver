@@ -65,8 +65,8 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
                             circularity = (4 * Math.PI * area) / (perimeter * perimeter);
                         }
 
-                        double minArea = binary.Width * binary.Height * 0.3; // 30% of image
-                        double maxArea = binary.Width * binary.Height * 0.9; // 90% of image
+                        double minArea = binary.Width * binary.Height * 0.1; // 20% of image
+                        double maxArea = binary.Width * binary.Height * 0.8; // 90% of image
 
                         if (area > minArea &&
                             area < maxArea &&
@@ -115,17 +115,9 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
                                 }
 
                                 Mat boundedResult = new Mat(result, boundingRect);
-                                if (_debugHelper != null)
-                                {
-                                    _debugHelper.SaveDebugImage(boundedResult, $"circle_content");
-                                }
                                 return (true, boundedResult);
                             }
 
-                            if (_debugHelper != null)
-                            {
-                                _debugHelper.SaveDebugImage(result, $"circle_content");
-                            }
                             return (true, result);
                         }
                     }

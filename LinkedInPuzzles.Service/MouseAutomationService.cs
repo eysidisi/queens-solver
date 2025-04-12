@@ -1,4 +1,5 @@
 using LinkedInPuzzles.Service.QueensProblem.Algorithm;
+using LinkedInPuzzles.Service.ZipProblem;
 using System.Drawing;
 using System.Runtime.InteropServices;
 
@@ -24,6 +25,11 @@ namespace LinkedInPuzzles.Service
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool GetCursorPos(out POINT lpPoint);
+
+        // Win32 API to block/unblock user input
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool BlockInput([MarshalAs(UnmanagedType.Bool)] bool fBlockIt);
 
         #endregion
 
@@ -142,7 +148,7 @@ namespace LinkedInPuzzles.Service
         /// <param name="delayBetweenDrags">Optional override for delay between drag operations</param>
         /// <param name="boardBounds">Optional rectangle specifying the actual board bounds within the screenshot</param>
         /// <returns>Task representing the async operation</returns>
-        public async Task DragBetweenZipNodes(List<ZipProblem.ZipNode> nodes, Rectangle screenRegion, int? delayBetweenDrags = null, Rectangle? boardBounds = null)
+        public async Task DragBetweenZipNodes(List<ZipNode> nodes, Rectangle screenRegion, int delayBetweenDrags, Rectangle? boardBounds = null)
         {
             if (nodes == null || nodes.Count == 0)
             {
@@ -159,87 +165,99 @@ namespace LinkedInPuzzles.Service
                 throw new ArgumentException("Screen region must have positive width and height", nameof(screenRegion));
             }
 
-            int actualDelay = delayBetweenDrags ?? clickDelay;
-
-            // Determine board size from the maximum row/column in the nodes
-            int maxRow = 0;
-            int maxCol = 0;
-            foreach (var node in nodes)
+            try
             {
-                maxRow = Math.Max(maxRow, node.Row);
-                maxCol = Math.Max(maxCol, node.Col);
-            }
-            int boardSize = Math.Max(maxRow, maxCol) + 1;
+                // Block user input while performing drag operations
+                BlockUserInput(true);
 
-            // If no board bounds provided, attempt to detect them or use full region
-            Rectangle actualBoardBounds = boardBounds ?? DetectBoardBounds(screenRegion, boardSize);
+                // Use a faster delay for dragging operations (override the input parameter)
+                delayBetweenDrags = Math.Min(delayBetweenDrags, 20);
 
-            // Calculate cell dimensions based on the actual board boundaries
-            int cellWidth = actualBoardBounds.Width / boardSize;
-            int cellHeight = actualBoardBounds.Height / boardSize;
+                // Determine board size from the maximum row/column in the nodes
+                int maxRow = 0;
+                int maxCol = 0;
+                foreach (var node in nodes)
+                {
+                    maxRow = Math.Max(maxRow, node.Row);
+                    maxCol = Math.Max(maxCol, node.Col);
+                }
+                int boardSize = Math.Max(maxRow, maxCol) + 1;
 
-            // Calculate the absolute position of the board within the screen
-            int boardStartX = screenRegion.Left + actualBoardBounds.Left;
-            int boardStartY = screenRegion.Top + actualBoardBounds.Top;
+                // If no board bounds provided, attempt to detect them or use full region
+                Rectangle actualBoardBounds = boardBounds ?? DetectBoardBounds(screenRegion, boardSize);
 
-            System.Diagnostics.Debug.WriteLine($"Board detected at: X={boardStartX}, Y={boardStartY}, Width={actualBoardBounds.Width}, Height={actualBoardBounds.Height}");
-            System.Diagnostics.Debug.WriteLine($"Cell dimensions: Width={cellWidth}, Height={cellHeight}");
+                // Calculate cell dimensions based on the actual board boundaries
+                int cellWidth = actualBoardBounds.Width / boardSize;
+                int cellHeight = actualBoardBounds.Height / boardSize;
 
-            if (nodes.Count < 2)
-            {
-                // If only one node, just click it
-                var node = nodes[0];
-                int screenX = boardStartX + (node.Col * cellWidth) + (cellWidth / 2);
-                int screenY = boardStartY + (node.Row * cellHeight) + (cellHeight / 2);
+                // Calculate the absolute position of the board within the screen
+                int boardStartX = screenRegion.Left + actualBoardBounds.Left;
+                int boardStartY = screenRegion.Top + actualBoardBounds.Top;
 
-                MoveCursorTo(screenX, screenY);
-                await Task.Delay(movementDelay);
+                System.Diagnostics.Debug.WriteLine($"Board detected at: X={boardStartX}, Y={boardStartY}, Width={actualBoardBounds.Width}, Height={actualBoardBounds.Height}");
+                System.Diagnostics.Debug.WriteLine($"Cell dimensions: Width={cellWidth}, Height={cellHeight}");
+
+                if (nodes.Count < 2)
+                {
+                    // If only one node, just click it
+                    var node = nodes[0];
+                    int screenX = boardStartX + (node.Col * cellWidth) + (cellWidth / 2);
+                    int screenY = boardStartY + (node.Row * cellHeight) + (cellHeight / 2);
+
+                    MoveCursorTo(screenX, screenY);
+                    await Task.Delay(Math.Min(movementDelay, 10));  // Reduced delay
+                    PerformMouseClick();
+
+                    OnProgressChanged(1, 1, new Point(screenX, screenY));
+                    return;
+                }
+
+                // Process the first node - click only, no drag
+                var firstNode = nodes[0];
+                int firstScreenX = boardStartX + (firstNode.Col * cellWidth) + (cellWidth / 2);
+                int firstScreenY = boardStartY + (firstNode.Row * cellHeight) + (cellHeight / 2);
+
+                System.Diagnostics.Debug.WriteLine($"Clicking first node at: {firstNode.Row},{firstNode.Col} -> Screen position: {firstScreenX},{firstScreenY}");
+
+                // Move cursor to first position and click
+                MoveCursorTo(firstScreenX, firstScreenY);
+                await Task.Delay(Math.Min(movementDelay, 10));  // Reduced delay
                 PerformMouseClick();
 
-                OnProgressChanged(1, 1, new Point(screenX, screenY));
-                return;
-            }
-
-            // Process the first node - click only, no drag
-            var firstNode = nodes[0];
-            int firstScreenX = boardStartX + (firstNode.Col * cellWidth) + (cellWidth / 2);
-            int firstScreenY = boardStartY + (firstNode.Row * cellHeight) + (cellHeight / 2);
-
-            System.Diagnostics.Debug.WriteLine($"Clicking first node at: {firstNode.Row},{firstNode.Col} -> Screen position: {firstScreenX},{firstScreenY}");
-
-            // Move cursor to first position and click
-            MoveCursorTo(firstScreenX, firstScreenY);
-            await Task.Delay(movementDelay);
-            PerformMouseClick();
-
-            // Progress information
-            OnProgressChanged(1, nodes.Count, new Point(firstScreenX, firstScreenY));
-
-            // Delay before starting drag operations
-            await Task.Delay(actualDelay);
-
-            // For each subsequent node, perform a drag operation
-            for (int i = 1; i < nodes.Count; i++)
-            {
-                var node = nodes[i];
-
-                // Calculate screen coordinates for the center of the cell
-                int screenX = boardStartX + (node.Col * cellWidth) + (cellWidth / 2);
-                int screenY = boardStartY + (node.Row * cellHeight) + (cellHeight / 2);
-
-                System.Diagnostics.Debug.WriteLine($"Dragging to node at: {node.Row},{node.Col} -> Screen position: {screenX},{screenY}");
-
-                // Perform drag operation from previous position to current node
-                await PerformMouseDrag(screenX, screenY);
-
                 // Progress information
-                OnProgressChanged(i + 1, nodes.Count, new Point(screenX, screenY));
+                OnProgressChanged(1, nodes.Count, new Point(firstScreenX, firstScreenY));
 
-                // Delay between drag operations (except after the last drag)
-                if (i < nodes.Count - 1)
+                // Reduced delay before starting drag operations
+                await Task.Delay(Math.Min(delayBetweenDrags, 20));
+
+                // For each subsequent node, perform a drag operation
+                for (int i = 1; i < nodes.Count; i++)
                 {
-                    await Task.Delay(actualDelay);
+                    var node = nodes[i];
+
+                    // Calculate screen coordinates for the center of the cell
+                    int screenX = boardStartX + (node.Col * cellWidth) + (cellWidth / 2);
+                    int screenY = boardStartY + (node.Row * cellHeight) + (cellHeight / 2);
+
+                    System.Diagnostics.Debug.WriteLine($"Dragging to node at: {node.Row},{node.Col} -> Screen position: {screenX},{screenY}");
+
+                    // Perform drag operation from previous position to current node
+                    await PerformMouseDrag(screenX, screenY);
+
+                    // Progress information
+                    OnProgressChanged(i + 1, nodes.Count, new Point(screenX, screenY));
+
+                    // Reduced delay between drag operations (except after the last drag)
+                    if (i < nodes.Count - 1)
+                    {
+                        await Task.Delay(Math.Min(delayBetweenDrags, 20));
+                    }
                 }
+            }
+            finally
+            {
+                // Always unblock user input when finished, even if an exception occurred
+                BlockUserInput(false);
             }
         }
 
@@ -356,45 +374,35 @@ namespace LinkedInPuzzles.Service
             // Calculate distance between points
             double distance = Math.Sqrt(Math.Pow(targetX - startX, 2) + Math.Pow(targetY - startY, 2));
 
-            // Determine number of steps based on distance (1 step per 10 pixels with a minimum of 5 steps and maximum of 30)
-            int steps = Math.Max(5, Math.Min(30, (int)(distance / 10)));
+            // Reduce steps for faster dragging - fewer interpolation points
+            int steps = Math.Max(3, Math.Min(6, (int)(distance / 20)));
 
             // Press mouse down at current position
             mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
 
-            // Small delay to ensure mouse down is registered
-            await Task.Delay(mouseDownDelay);
+            // Reduced delay to ensure mouse down is registered
+            await Task.Delay(Math.Min(mouseDownDelay, 3));
 
-            // Small random offset for human-like jitter
-            Random random = new Random();
-
-            // Move through intermediate points with slight randomization for realism
+            // Move through intermediate points with reduced delay
             for (int i = 1; i <= steps; i++)
             {
-                // Calculate position along the path with slight randomization
+                // Calculate position along the path
                 int interpolatedX = startX + (int)((targetX - startX) * (i / (double)steps));
                 int interpolatedY = startY + (int)((targetY - startY) * (i / (double)steps));
-
-                // Add slight jitter for more realistic movement (±2 pixels)
-                if (i > 1 && i < steps) // Don't add jitter to the first or last positions
-                {
-                    interpolatedX += random.Next(-2, 3); // Random value between -2 and 2
-                    interpolatedY += random.Next(-2, 3); // Random value between -2 and 2
-                }
 
                 // Move to the interpolated position
                 MoveCursorTo(interpolatedX, interpolatedY);
 
-                // Shorter delay between intermediate movements
-                int stepDelay = i == steps ? movementDelay : Math.Max(2, movementDelay / 4);
+                // Minimal delay between intermediate movements
+                int stepDelay = i == steps ? Math.Min(movementDelay, 5) : 1;
                 await Task.Delay(stepDelay);
             }
 
             // Ensure we end exactly at the target position
             MoveCursorTo(targetX, targetY);
 
-            // Small delay before releasing the button
-            await Task.Delay(mouseDownDelay);
+            // Reduced delay before releasing the button
+            await Task.Delay(Math.Min(mouseDownDelay, 3));
 
             // Release mouse button at target position
             mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
@@ -417,6 +425,25 @@ namespace LinkedInPuzzles.Service
         {
             // Could be expanded to include a proper event system if needed
             System.Diagnostics.Debug.WriteLine($"Mouse automation progress: {current}/{total} at position {location}");
+        }
+
+        /// <summary>
+        /// Blocks or unblocks user input (mouse and keyboard)
+        /// </summary>
+        /// <param name="block">True to block input, false to unblock</param>
+        /// <returns>True if successful, false otherwise</returns>
+        private bool BlockUserInput(bool block)
+        {
+            try
+            {
+                // Note: This requires administrator privileges to work properly
+                return BlockInput(block);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to {(block ? "block" : "unblock")} user input: {ex.Message}");
+                return false;
+            }
         }
 
         #endregion

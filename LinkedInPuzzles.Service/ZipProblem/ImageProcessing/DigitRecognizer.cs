@@ -2,12 +2,13 @@ using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using System.Drawing;
+using System.Xml.Linq;
 using Tesseract;
 
 namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
 {
     /// <summary>
-    /// Recognizes digits in images using OCR 
+    /// Recognizes digits in images using OCR
     /// </summary>
     public class DigitRecognizer : IDisposable
     {
@@ -17,21 +18,29 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
         public DigitRecognizer(DebugHelper debugHelper, string tessdataPath)
         {
             _debugHelper = debugHelper;
-            // Initialize tesseract
 
             EnsureTessDataExists(tessdataPath);
 
+            // Initialize Tesseract
+            // Include '0' in the whitelist so that multi-digit numbers (e.g., "10") can be recognized.
             _tesseract = new TesseractEngine(tessdataPath, "eng", EngineMode.Default);
-
-            // Configure Tesseract for digit recognition
-            _tesseract.SetVariable("tessedit_char_whitelist", "123456789");
+            _tesseract.SetVariable("tessedit_char_whitelist", "0123456789");
             _tesseract.SetVariable("classify_bln_numeric_mode", "1");
+            _tesseract.SetVariable("text_is_digit_only", "1");
+            _tesseract.SetVariable("tessedit_write_images", "true");
         }
 
+        /// <summary>
+        /// Recognizes multi-digit numbers (e.g., "10", "11") from the given image.
+        /// Disallows single-digit '0' as a valid output.
+        /// </summary>
+        /// <param name="image">The input image (ROI with the digit(s))</param>
+        /// <returns>An integer representing the recognized number, or 0 if none / invalid.</returns>
         public int RecognizeDigit(Mat image)
         {
             try
             {
+                // Basic image dimension check
                 if (image.Width <= 1 || image.Height <= 1)
                 {
                     return 0; // Invalid image
@@ -41,7 +50,7 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
                 var parameters = new PreprocessingParameters
                 {
                     MorphKernelSize = 2,
-                    DilateIterations = 1
+                    DilateIterations = 2
                 };
 
                 // Preprocess the image for OCR
@@ -49,51 +58,36 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
                 {
                     _debugHelper.SaveDebugImage(processedImage, $"cell_processed_{Random.Shared.Next()}");
 
-                    List<DetectionResult> results = new List<DetectionResult>();
-
                     // Convert to bitmap for Tesseract
                     using (Bitmap bmp = processedImage.ToBitmap())
                     using (var pix = Pix.LoadFromMemory(ImageToByte(bmp)))
-                    using (var page = _tesseract.Process(pix, PageSegMode.SingleChar))
                     {
-                        string text = page.GetText().Trim();
-                        float confidence = page.GetMeanConfidence();
-
-                        _debugHelper.LogDebugMessage(
-                            $"OCR detected text: '{text}' with confidence: {confidence:F3}");
-
-                        // Attempt to parse the detected text as a number
-                        if (int.TryParse(text, out int number))
+                        // Use SingleBlock to allow multi-digit detection.
+                        using (var page = _tesseract.Process(pix, PageSegMode.SingleLine))
                         {
-                            results.Add(new DetectionResult
+                            string rawText = page.GetText().Trim();
+                            float confidence = page.GetMeanConfidence();
+
+                            _debugHelper.LogDebugMessage(
+                                $"OCR detected text: '{rawText}' with confidence: {confidence:F3}");
+
+
+                            // Clean out non-digit characters
+                            string cleanedText = new string(rawText.Where(char.IsDigit).ToArray());
+
+                            if (string.IsNullOrEmpty(cleanedText) || IsAllZeros(cleanedText))
                             {
-                                Number = number,
-                                Confidence = confidence,
-                                Parameters = parameters
-                            });
-                        }
-                        else
-                        {
-                            // Clean the text and try parsing again
-                            string cleanedText = new string(text.Where(char.IsDigit).ToArray());
-                            if (!string.IsNullOrEmpty(cleanedText) &&
-                                int.TryParse(cleanedText, out number))
+                                throw new Exception("Detected text is empty or all zeros.");
+                            }
+
+                            // Attempt to parse the cleaned text as an integer
+                            if (int.TryParse(cleanedText, out int recognizedNumber))
                             {
-                                results.Add(new DetectionResult
-                                {
-                                    Number = number,
-                                    Confidence = confidence * 0.9f,
-                                    Parameters = parameters
-                                });
+                                _debugHelper.LogDebugMessage(
+                                    $"Parsed cleaned text: '{cleanedText}' => {recognizedNumber}");
+                                return recognizedNumber;
                             }
                         }
-                    }
-
-                    // Process and return the most confident result
-                    if (results.Count > 0)
-                    {
-                        results.Sort((a, b) => b.Confidence.CompareTo(a.Confidence));
-                        return results[0].Number;
                     }
                 }
             }
@@ -102,9 +96,13 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
                 _debugHelper.LogDebugMessage($"Error detecting number: {ex.Message}");
             }
 
-            return 0; // No digit detected or error
+            // No valid number detected
+            return 0;
         }
 
+        /// <summary>
+        /// Converts a Bitmap to a byte array in PNG format for Tesseract consumption.
+        /// </summary>
         private byte[] ImageToByte(Bitmap img)
         {
             using (var stream = new MemoryStream())
@@ -114,6 +112,71 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
             }
         }
 
+        /// <summary>
+        /// Basic check to see if a string is composed solely of '0' characters
+        /// </summary>
+        private bool IsAllZeros(string text)
+        {
+            // True if every character is '0'
+            return text.All(ch => ch == '0');
+        }
+
+        /// <summary>
+        /// Preprocesses the given image (ROI) for Tesseract OCR: resize, threshold, morphological operations.
+        /// </summary>
+        private Mat PreprocessForOCR(Mat image, PreprocessingParameters parameters)
+        {
+            // Clone the input to avoid modifying the original.
+            Mat processed = image.Clone();
+
+            // 1. Resize the image to a fixed target height (e.g., 32 pixels)
+            int targetSize = 32; // This target height works well with screenshots.
+            double scale = (double)targetSize / processed.Height;
+            Size newSize = new Size((int)(processed.Width * scale), targetSize);
+            CvInvoke.Resize(processed, processed, newSize, 0, 0, Inter.Cubic);
+
+            // 2. Convert to grayscale if necessary.
+            if (processed.NumberOfChannels > 1)
+            {
+                CvInvoke.CvtColor(processed, processed, ColorConversion.Bgr2Gray);
+            }
+
+            // 3. Since the input is clean, avoid heavy blurring. A light blur (if any) using a 3x3 kernel is enough.
+            CvInvoke.GaussianBlur(processed, processed, new Size(3, 3), 0);
+
+            // 4. Apply Otsu's thresholding to get a clean binary image.
+            Mat binary = new Mat();
+            CvInvoke.Threshold(processed, binary, 0, 255, ThresholdType.Binary | ThresholdType.Otsu);
+
+            // 5. Ensure that the image shows dark digits on a white background.
+            double sumOfPixels = CvInvoke.Sum(binary).V0;
+            double totalPixelValue = 255.0 * binary.Width * binary.Height;
+            double whitePixelRatio = sumOfPixels / totalPixelValue;
+            if (whitePixelRatio < 0.5)
+            {
+                CvInvoke.BitwiseNot(binary, binary);
+            }
+
+            // 6. Apply a very light morphological closing to clean minor gaps inside digit strokes.
+            // Use only closing and do not apply dilation to avoid merging adjacent "1" digits.
+            int kernelSize = parameters.MorphKernelSize > 1 ? parameters.MorphKernelSize : 3;
+            using (Mat element = CvInvoke.GetStructuringElement(ElementShape.Rectangle, new Size(kernelSize, kernelSize), new Point(-1, -1)))
+            {
+                // Use closing to fix small holes in individual digits.
+                CvInvoke.MorphologyEx(binary, binary, MorphOp.Close, element, new Point(-1, -1), 1, BorderType.Default, new MCvScalar());
+                if (parameters.DilateIterations > 0)
+                {
+                    CvInvoke.MorphologyEx(binary, binary, MorphOp.Dilate, element, new Point(-1, -1),
+                        parameters.DilateIterations, BorderType.Default, new MCvScalar());
+                }
+            }
+
+            return binary;
+        }
+
+        /// <summary>
+        /// Ensures that Tesseract data files are present.
+        /// </summary>
         private void EnsureTessDataExists(string tessdataPath)
         {
             string engDataPath = Path.Combine(tessdataPath, "eng.traineddata");
@@ -130,58 +193,6 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
                     "is present in the tessdata directory, or install the Tesseract.Data.English NuGet package.");
             }
         }
-
-        private Mat PreprocessForOCR(Mat image, PreprocessingParameters parameters)
-        {
-            // Create a working copy
-            Mat processed = new Mat();
-            image.CopyTo(processed);
-
-            // 1. Resize the image so its height is approximately the target character height (32 pixels)
-            int targetSize = 32;
-            double scale = (double)targetSize / processed.Height;
-            Size newSize = new Size((int)(processed.Width * scale), targetSize);
-            // Use a good interpolation method for enlarging/shrinking (bicubic)
-            CvInvoke.Resize(processed, processed, newSize, 0, 0, Inter.Cubic);
-
-            // 2. Convert to grayscale if needed
-            if (processed.NumberOfChannels > 1)
-            {
-                CvInvoke.CvtColor(processed, processed, ColorConversion.Bgr2Gray);
-            }
-
-            // 3. Apply Otsu's thresholding to create a binary image
-            Mat binary = new Mat();
-            CvInvoke.Threshold(processed, binary, 0, 255, ThresholdType.Otsu | ThresholdType.Binary);
-
-            // 4. Ensure the digit is dark on a white background (standard for OCR)
-            MCvScalar sum = CvInvoke.Sum(binary);
-            double whitePixelRatio = sum.V0 / (255.0 * binary.Width * binary.Height);
-            if (whitePixelRatio < 0.5)
-            {
-                CvInvoke.BitwiseNot(binary, binary);
-            }
-
-            // 5. Remove noise using morphological operations
-            int kernelSize = parameters.MorphKernelSize > 1 ? parameters.MorphKernelSize : 3;
-            Mat element = CvInvoke.GetStructuringElement(
-                ElementShape.Rectangle,
-                new Size(kernelSize, kernelSize),
-                new Point(-1, -1));
-
-            // Apply closing to remove noise
-            CvInvoke.MorphologyEx(binary, binary, MorphOp.Close, element, new Point(-1, -1), 1, BorderType.Default, new MCvScalar());
-
-            // Apply dilation if specified in parameters
-            if (parameters.DilateIterations > 0)
-            {
-                CvInvoke.MorphologyEx(binary, binary, MorphOp.Dilate, element, new Point(-1, -1),
-                    parameters.DilateIterations, BorderType.Default, new MCvScalar());
-            }
-
-            return binary;
-        }
-
 
         public void Dispose()
         {

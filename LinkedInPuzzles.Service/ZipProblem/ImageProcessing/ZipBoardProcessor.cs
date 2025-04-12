@@ -37,10 +37,8 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
             // Create and analyze the ZipBoard
             var zipBoard = AnalyzeProcessedBoard(colorImage, numberOfCells);
             // Add a senity check to ensure the board is valid. Numbers should be unique and in the range 1-9 and theyere can't be any missing numbers.
-            if (!zipBoard.IsValid())
-            {
-                throw new Exception("Invalid board detected. Please ensure all numbers are unique and in the range 1-9 with no missing numbers.");
-            }
+            zipBoard.ValidateBoard();
+            
 
             // Detect walls between cells and update connectivity
             _connectivityDetector.DetectWallsAndSetupConnectivity(colorImage, zipBoard, numberOfCells);
@@ -95,6 +93,7 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
                 {
                     return 0;
                 }
+                _debugHelper.SaveDebugImage(extractedContent, $"cell_{row}_{col}");
                 return _digitRecognizer.RecognizeDigit(extractedContent);
 
             }

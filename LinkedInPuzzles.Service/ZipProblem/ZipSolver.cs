@@ -1,15 +1,15 @@
-﻿
-namespace LinkedInPuzzles.Service.ZipProblem
+﻿namespace LinkedInPuzzles.Service.ZipProblem
 {
     public class ZipSolver
     {
         private readonly ZipBoard board;
+
         private int totalAvailable;
-        private bool[,] visited;
+        private Dictionary<(int, int), bool> visited;
         private List<ZipNode> solutionPath;
         private int nextFixedExpected;
-        private int highestOrder;
-        private ZipNode highestOrderNode;
+        private int highestOrder; // Track the highest order number on the board
+        private ZipNode highestOrderNode; // The node with the highest order
 
         public ZipSolver(ZipBoard board)
         {
@@ -18,7 +18,9 @@ namespace LinkedInPuzzles.Service.ZipProblem
 
         public List<ZipNode> Solve()
         {
-            totalAvailable = board.Rows * board.Cols;
+            totalAvailable = board.Rows * board.Cols; // Since all cells are available.
+
+            // Find the highest order node
             highestOrder = 0;
             highestOrderNode = null;
 
@@ -31,90 +33,141 @@ namespace LinkedInPuzzles.Service.ZipProblem
                 }
             }
 
-            visited = new bool[board.Rows, board.Cols];
+            visited = new Dictionary<(int, int), bool>();
+            for (int i = 0; i < board.Rows; i++)
+            {
+                for (int j = 0; j < board.Cols; j++)
+                {
+                    visited[(i, j)] = false;
+                }
+            }
+
             solutionPath = new List<ZipNode>();
             nextFixedExpected = 1;
 
-            // Select starting node
-            ZipNode startNode = board.OrderMap.TryGetValue(1, out var fixedStart)
-                                    ? fixedStart
-                                    : board.GetNode(0, 0);
-
-            if (startNode == null || (startNode.Order != 0 && startNode.Order != nextFixedExpected))
+            // Choose starting node (must be the node labeled with "1" if present).
+            ZipNode startNode = null;
+            if (board.OrderMap.TryGetValue(1, out startNode))
             {
+                // Found the required starting node
+            }
+            else
+            {
+                // If no fixed start node, pick any node as a fallback.
+                startNode = board.GetNode(0, 0);
+            }
+
+            if (startNode == null)
+            {
+                System.Diagnostics.Debug.WriteLine("No starting node available.");
                 return null;
             }
 
-            visited[startNode.Row, startNode.Col] = true;
+            if (startNode.Order != 0 && startNode.Order != nextFixedExpected)
+                return null;
+
+            visited[(startNode.Row, startNode.Col)] = true;
             solutionPath.Add(startNode);
             nextFixedExpected++;
 
-            // Use the merged recursive function.
-            bool success = HamiltonianRecursive(startNode, highestOrderNode != null);
+            // Try to find a path
+            bool success = false;
+
+            // If we have a highest order node, we need a different strategy to ensure it's the last node
+            if (highestOrderNode != null)
+            {
+                // Remove the highest order node from being visited unless it's the last node
+                success = HamiltonianPathWithEndNode(startNode);
+            }
+            else
+            {
+                // Use original algorithm if there's no specified end node
+                success = HamiltonianBacktrack(startNode);
+            }
+
             return success ? solutionPath : null;
         }
 
-        private bool HamiltonianRecursive(ZipNode current, bool enforceEndNode)
+        private bool HamiltonianPathWithEndNode(ZipNode current)
         {
-            // Base case for enforcing an end node: leave one slot for highestOrderNode.
-            if (enforceEndNode && solutionPath.Count == totalAvailable - 1)
+            // If we've visited totalAvailable-1 nodes (all except the end node)
+            if (solutionPath.Count == totalAvailable - 1)
             {
+                // Check if our current position is adjacent to the highest order node
                 if (current.Neighbors.Contains(highestOrderNode))
                 {
-                    visited[highestOrderNode.Row, highestOrderNode.Col] = true;
+                    // Add the end node and we're done
+                    visited[(highestOrderNode.Row, highestOrderNode.Col)] = true;
                     solutionPath.Add(highestOrderNode);
                     return true;
                 }
-                return false;
-            }
-            // General base case.
-            if (!enforceEndNode && solutionPath.Count == totalAvailable)
-            {
-                return true;
+                return false; // No path to end node
             }
 
-            // Apply a heuristic: optionally sort neighbors by unvisited count.
-            var neighbors = current.Neighbors.OrderBy(n => CountUnvisitedNeighbors(n)).ToList();
-
-            foreach (ZipNode neighbor in neighbors)
+            // Skip visiting the highest order node until the end
+            foreach (ZipNode neighbor in current.Neighbors)
             {
-                if (!visited[neighbor.Row, neighbor.Col])
+                // Skip the highest order node unless we're ready for it
+                if (neighbor == highestOrderNode)
+                    continue;
+
+                if (!visited[(neighbor.Row, neighbor.Col)])
                 {
-                    // Respect fixed order constraint.
                     if (neighbor.Order != 0 && neighbor.Order != nextFixedExpected)
                         continue;
 
-                    visited[neighbor.Row, neighbor.Col] = true;
+                    visited[(neighbor.Row, neighbor.Col)] = true;
                     solutionPath.Add(neighbor);
-                    bool incrementedFixed = false;
+                    bool fixedIncremented = false;
                     if (neighbor.Order != 0)
                     {
                         nextFixedExpected++;
-                        incrementedFixed = true;
+                        fixedIncremented = true;
                     }
 
-                    if (HamiltonianRecursive(neighbor, enforceEndNode))
+                    if (HamiltonianPathWithEndNode(neighbor))
                         return true;
 
-                    // Backtrack.
-                    if (incrementedFixed)
+                    if (fixedIncremented)
                         nextFixedExpected--;
                     solutionPath.RemoveAt(solutionPath.Count - 1);
-                    visited[neighbor.Row, neighbor.Col] = false;
+                    visited[(neighbor.Row, neighbor.Col)] = false;
                 }
             }
             return false;
         }
 
-        private int CountUnvisitedNeighbors(ZipNode node)
+        private bool HamiltonianBacktrack(ZipNode current)
         {
-            int count = 0;
-            foreach (var neighbor in node.Neighbors)
+            if (solutionPath.Count == totalAvailable)
+                return true;
+
+            foreach (ZipNode neighbor in current.Neighbors)
             {
-                if (!visited[neighbor.Row, neighbor.Col])
-                    count++;
+                if (!visited[(neighbor.Row, neighbor.Col)])
+                {
+                    if (neighbor.Order != 0 && neighbor.Order != nextFixedExpected)
+                        continue;
+
+                    visited[(neighbor.Row, neighbor.Col)] = true;
+                    solutionPath.Add(neighbor);
+                    bool fixedIncremented = false;
+                    if (neighbor.Order != 0)
+                    {
+                        nextFixedExpected++;
+                        fixedIncremented = true;
+                    }
+
+                    if (HamiltonianBacktrack(neighbor))
+                        return true;
+
+                    if (fixedIncremented)
+                        nextFixedExpected--;
+                    solutionPath.RemoveAt(solutionPath.Count - 1);
+                    visited[(neighbor.Row, neighbor.Col)] = false;
+                }
             }
-            return count;
+            return false;
         }
     }
 }

@@ -89,6 +89,9 @@
     <None Update="ZipProblem\ZipTestImages\zip_7x7_1_cropped.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="ZipProblem\ZipTestImages\zip_7x7_2.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
