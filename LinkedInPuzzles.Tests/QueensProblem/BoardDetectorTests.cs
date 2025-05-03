@@ -1,5 +1,6 @@
 using Emgu.CV;
 using Emgu.CV.CvEnum;
+using Emgu.CV.Features2D;
 using Emgu.CV.Structure;
 using LinkedInPuzzles.Service;
 using LinkedInPuzzles.Service.QueensProblem.ImageProcessing;
@@ -150,7 +151,7 @@ namespace LinkedInPuzzles.Tests.Queens
         public void ExtractBoardAndAnalyze_WithRealImages_ShouldReturnCorrectDimensions(string imageName, int expectedRows, int expectedColumns)
         {
             // Arrange
-            string imagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "LinkedInPuzzles/TestImages", imageName);
+            string imagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "QueensProblem\\TestImages", imageName);
 
             // Make sure the test image exists
             if (!File.Exists(imagePath))

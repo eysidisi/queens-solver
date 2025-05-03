@@ -36,7 +36,7 @@ namespace LinkedInPuzzles.Tests.ZipProblem
                 }
             }
 
-            _debugHelper = new DebugHelper(false); // Enable debug mode for tests
+            _debugHelper = new DebugHelper(true); // Enable debug mode for tests
             // Initialize the ZipBoardProcessor with dependencies
             var digitRecognizer = new DigitRecognizer(_debugHelper, tessdataPath);
             var circleDetector = new CircleDetector(_debugHelper);

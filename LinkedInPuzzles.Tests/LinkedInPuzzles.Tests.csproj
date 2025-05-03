@@ -53,6 +53,27 @@
     <None Update="LinkedInPuzzles\TestImages\queens_9x9_3.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="QueensProblem\TestImages\queens_10x10_2.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="QueensProblem\TestImages\queens_11x11.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="QueensProblem\TestImages\queens_8x8.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="QueensProblem\TestImages\queens_8x8_2.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="QueensProblem\TestImages\queens_9x9.jpg">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="QueensProblem\TestImages\queens_9x9_2.jpg">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="QueensProblem\TestImages\queens_9x9_3.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="ZipProblem\ZipTestImages\zip_6x6_1.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

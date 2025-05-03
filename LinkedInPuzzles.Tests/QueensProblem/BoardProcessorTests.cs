@@ -12,7 +12,7 @@ namespace LinkedInPuzzles.Tests.Queens
     public class BoardProcessorTests
     {
         // Constants for directories and supported file types
-        private const string TestImagesDirectory = "LinkedInPuzzles/TestImages";
+        private const string TestImagesDirectory = "QueensProblem\\TestImages";
         private static readonly string[] SupportedExtensions = { ".png", ".jpg", ".jpeg", ".bmp" };
 
         // Dependencies needed for testing
@@ -87,7 +87,7 @@ namespace LinkedInPuzzles.Tests.Queens
             Console.WriteLine($"Testing color processing of {targetFile}");
 
             // Process the image
-            ProcessAndVerifyImage(imagePath, colorImage => _boardDetector.ExtractBoardAndAnalyze(colorImage), expectedPattern);
+            ProcessAndVerifyImage(imagePath, _boardDetector.ExtractBoardAndAnalyze, expectedPattern);
         }
 
         // Helper method to find a specific test image

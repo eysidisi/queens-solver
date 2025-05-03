@@ -142,7 +142,7 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
             }
 
             // 3. Since the input is clean, avoid heavy blurring. A light blur (if any) using a 3x3 kernel is enough.
-            CvInvoke.GaussianBlur(processed, processed, new Size(3, 3), 0);
+            //CvInvoke.GaussianBlur(processed, processed, new Size(3, 3), 0);
 
             // 4. Apply Otsu's thresholding to get a clean binary image.
             Mat binary = new Mat();
@@ -164,11 +164,11 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
             {
                 // Use closing to fix small holes in individual digits.
                 CvInvoke.MorphologyEx(binary, binary, MorphOp.Close, element, new Point(-1, -1), 1, BorderType.Default, new MCvScalar());
-                if (parameters.DilateIterations > 0)
-                {
-                    CvInvoke.MorphologyEx(binary, binary, MorphOp.Dilate, element, new Point(-1, -1),
-                        parameters.DilateIterations, BorderType.Default, new MCvScalar());
-                }
+                //if (parameters.DilateIterations > 0)
+                //{
+                //    CvInvoke.MorphologyEx(binary, binary, MorphOp.Dilate, element, new Point(-1, -1),
+                //        parameters.DilateIterations, BorderType.Default, new MCvScalar());
+                //}
             }
 
             return binary;

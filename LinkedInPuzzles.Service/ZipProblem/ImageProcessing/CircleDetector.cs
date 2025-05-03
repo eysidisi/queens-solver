@@ -96,7 +96,7 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
                                 boundingRect.Y + boundingRect.Height <= result.Height)
                             {
                                 // Apply small padding inside the circle (focus on the digit)
-                                int padding = Math.Min(boundingRect.Width, boundingRect.Height) / 10;
+                                int padding = Math.Min(boundingRect.Width, boundingRect.Height) / 5;
                                 Rectangle paddedRect = new Rectangle(
                                     boundingRect.X + padding,
                                     boundingRect.Y + padding,

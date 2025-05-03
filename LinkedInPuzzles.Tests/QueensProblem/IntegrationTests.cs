@@ -15,7 +15,7 @@ namespace LinkedInPuzzles.Tests.Queens
         private readonly BoardDetector _boardDetector;
         private readonly ColorAnalyzer _colorAnalyzer;
         private readonly QueensBoardProcessor _boardProcessor;
-        private const string TestImagesDirectory = "LinkedInPuzzles/TestImages";
+        private const string TestImagesDirectory = "QueensProblem\\TestImages";
         private static readonly string[] SupportedExtensions = { ".png", ".jpg", ".jpeg", ".bmp" };
 
         /// <summary>
