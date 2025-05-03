@@ -19,12 +19,14 @@ namespace LinkedInPuzzles.UI
         private readonly ScreenCaptureService screenCaptureService;
         private readonly QueensImageProcessingService queensImageProcessingService;
         private readonly ZipImageProcessingService zipImageProcessingService;
+        private CancellationTokenSource cancellationTokenSource;
         private enum ProblemType { Queens, Zip }
 
         public MainForm()
         {
             screenCaptureService = new ScreenCaptureService();
             queensImageProcessingService = new QueensImageProcessingService(debugEnabled);
+            cancellationTokenSource = new CancellationTokenSource();
 
             // Initialize services for Zip problem
             var debugHelper = new DebugHelper(debugEnabled);
@@ -79,6 +81,10 @@ namespace LinkedInPuzzles.UI
             zipImageProcessingService = new ZipImageProcessingService(debugHelper, zipBoardProcessor, boardDetector);
 
             InitializeComponents();
+            
+            // Add key event handler
+            this.KeyPreview = true;
+            this.KeyDown += MainForm_KeyDown;
         }
 
         private void InitializeComponents()
@@ -385,6 +391,15 @@ namespace LinkedInPuzzles.UI
             await SolveProblem(ProblemType.Zip);
         }
 
+        private void MainForm_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Escape)
+            {
+                cancellationTokenSource.Cancel();
+                statusLabel.Text = "Operation cancelled by user";
+            }
+        }
+
         private async Task SolveProblem(ProblemType problemType)
         {
             if (capturedImage == null)
@@ -394,6 +409,10 @@ namespace LinkedInPuzzles.UI
                 return;
             }
 
+            // Reset cancellation token
+            cancellationTokenSource = new CancellationTokenSource();
+            var token = cancellationTokenSource.Token;
+
             // Disable buttons while processing
             captureButton.Enabled = false;
             browseButton.Enabled = false;
@@ -401,7 +420,7 @@ namespace LinkedInPuzzles.UI
             solveZipButton.Enabled = false;
 
             string problemName = problemType == ProblemType.Queens ? "Queens Problem" : "Zip Problem";
-            statusLabel.Text = $"Processing image and solving {problemName}...";
+            statusLabel.Text = $"Processing image and solving {problemName}... (Press ESC to cancel)";
 
             try
             {
@@ -409,7 +428,7 @@ namespace LinkedInPuzzles.UI
                 {
                     // Process the Queens Problem image in a background task
                     var (resultImage, queens, boardBounds) = await Task.Run(() =>
-                        queensImageProcessingService.ProcessAndSolveQueensProblem(capturedImage));
+                        queensImageProcessingService.ProcessAndSolveQueensProblem(capturedImage), token);
 
                     if (resultImage != null)
                     {
@@ -422,7 +441,7 @@ namespace LinkedInPuzzles.UI
                 {
                     // Process the Zip Problem image in a background task
                     var (resultImage, solution, board, boardBounds) = await Task.Run(() =>
-                        zipImageProcessingService.ProcessAndSolveZipPuzzle(capturedImage));
+                        zipImageProcessingService.ProcessAndSolveZipPuzzle(capturedImage), token);
 
                     if (resultImage != null)
                     {
@@ -431,6 +450,10 @@ namespace LinkedInPuzzles.UI
                         resultForm.Show();
                     }
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                statusLabel.Text = "Operation cancelled by user";
             }
             catch (Exception ex)
             {
@@ -444,7 +467,10 @@ namespace LinkedInPuzzles.UI
                 browseButton.Enabled = true;
                 solveQueensButton.Enabled = capturedImage != null;
                 solveZipButton.Enabled = capturedImage != null;
-                statusLabel.Text = "Ready";
+                if (!token.IsCancellationRequested)
+                {
+                    statusLabel.Text = "Ready";
+                }
             }
         }
     }

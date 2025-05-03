@@ -1,4 +1,4 @@
-using Emgu.CV;
+﻿using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using System.Drawing;
@@ -49,21 +49,20 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
                 // Define preprocessing parameters
                 var parameters = new PreprocessingParameters
                 {
-                    MorphKernelSize = 2,
-                    DilateIterations = 2
+                    MorphKernelSize = 1,
+                    DilateIterations = 1
                 };
 
                 // Preprocess the image for OCR
                 using (Mat processedImage = PreprocessForOCR(image, parameters))
                 {
                     _debugHelper.SaveDebugImage(processedImage, $"cell_processed_{Random.Shared.Next()}");
-
                     // Convert to bitmap for Tesseract
                     using (Bitmap bmp = processedImage.ToBitmap())
                     using (var pix = Pix.LoadFromMemory(ImageToByte(bmp)))
                     {
                         // Use SingleBlock to allow multi-digit detection.
-                        using (var page = _tesseract.Process(pix, PageSegMode.SingleLine))
+                        using (var page = _tesseract.Process(pix, PageSegMode.SingleBlock))
                         {
                             string rawText = page.GetText().Trim();
                             float confidence = page.GetMeanConfidence();
@@ -129,7 +128,7 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
             // Clone the input to avoid modifying the original.
             Mat processed = image.Clone();
 
-            // 1. Resize the image to a fixed target height (e.g., 32 pixels)
+            //// 1. Resize the image to a fixed target height (e.g., 32 pixels)
             int targetSize = 32; // This target height works well with screenshots.
             double scale = (double)targetSize / processed.Height;
             Size newSize = new Size((int)(processed.Width * scale), targetSize);
@@ -157,18 +156,13 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
                 CvInvoke.BitwiseNot(binary, binary);
             }
 
-            // 6. Apply a very light morphological closing to clean minor gaps inside digit strokes.
-            // Use only closing and do not apply dilation to avoid merging adjacent "1" digits.
-            int kernelSize = parameters.MorphKernelSize > 1 ? parameters.MorphKernelSize : 3;
-            using (Mat element = CvInvoke.GetStructuringElement(ElementShape.Rectangle, new Size(kernelSize, kernelSize), new Point(-1, -1)))
+            using (var element = CvInvoke.GetStructuringElement(
+                       ElementShape.Rectangle, new Size(parameters.MorphKernelSize, parameters.MorphKernelSize), new Point(-1, -1)))
             {
-                // Use closing to fix small holes in individual digits.
                 CvInvoke.MorphologyEx(binary, binary, MorphOp.Close, element, new Point(-1, -1), 1, BorderType.Default, new MCvScalar());
-                //if (parameters.DilateIterations > 0)
-                //{
-                //    CvInvoke.MorphologyEx(binary, binary, MorphOp.Dilate, element, new Point(-1, -1),
-                //        parameters.DilateIterations, BorderType.Default, new MCvScalar());
-                //}
+
+                if (parameters.DilateIterations > 0)
+                    CvInvoke.MorphologyEx(binary, binary, MorphOp.Dilate, element, new Point(-1, -1), 1, BorderType.Default, new MCvScalar());
             }
 
             return binary;

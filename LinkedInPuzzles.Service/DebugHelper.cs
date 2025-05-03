@@ -21,7 +21,7 @@ namespace LinkedInPuzzles.Service
         {
             if (!_debugEnabled) return;
 
-            string path = "debug_" + name + ".png";
+            string path = name + ".png";
             CvInvoke.Imwrite(path, image);
             Console.WriteLine($"Debug image saved: {path}");
         }

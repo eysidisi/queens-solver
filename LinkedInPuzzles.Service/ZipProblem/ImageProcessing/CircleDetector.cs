@@ -95,26 +95,44 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
                                 boundingRect.X + boundingRect.Width <= result.Width &&
                                 boundingRect.Y + boundingRect.Height <= result.Height)
                             {
+                                // Make the rectangle square by using the maximum dimension
+                                int maxDimension = Math.Max(boundingRect.Width, boundingRect.Height);
+                                int minDimension = Math.Min(boundingRect.Width, boundingRect.Height);
+                                int centerX = boundingRect.X + boundingRect.Width / 2;
+                                int centerY = boundingRect.Y + boundingRect.Height / 2;
+                                
+                                // Create a square rectangle centered on the original rectangle
+                                Rectangle squareRect = new Rectangle(
+                                    centerX - maxDimension / 2,
+                                    centerY - maxDimension / 2,
+                                    maxDimension,
+                                    maxDimension
+                                );
+
+                                // Ensure the square rectangle stays within image bounds
+                                squareRect.X = Math.Max(0, Math.Min(squareRect.X, result.Width - maxDimension));
+                                squareRect.Y = Math.Max(0, Math.Min(squareRect.Y, result.Height - maxDimension));
+
                                 // Apply small padding inside the circle (focus on the digit)
-                                int padding = Math.Min(boundingRect.Width, boundingRect.Height) / 5;
+                                int padding = minDimension / 6;
                                 Rectangle paddedRect = new Rectangle(
-                                    boundingRect.X + padding,
-                                    boundingRect.Y + padding,
-                                    boundingRect.Width - padding * 2,
-                                    boundingRect.Height - padding * 2
+                                    squareRect.X + padding,
+                                    squareRect.Y + padding,
+                                    squareRect.Width - padding * 2,
+                                    squareRect.Height - padding * 2
                                 );
 
                                 if (paddedRect.Width > 0 && paddedRect.Height > 0)
                                 {
                                     Mat cropped = new Mat(result, paddedRect);
-                                    if ( _debugHelper != null)
+                                    if (_debugHelper != null)
                                     {
                                         _debugHelper.SaveDebugImage(cropped, $"circle_content");
                                     }
                                     return (true, cropped);
                                 }
 
-                                Mat boundedResult = new Mat(result, boundingRect);
+                                Mat boundedResult = new Mat(result, squareRect);
                                 return (true, boundedResult);
                             }
 

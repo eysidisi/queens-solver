@@ -4,6 +4,7 @@ using LinkedInPuzzles.Service.ZipProblem;
 using LinkedInPuzzles.Service.ZipProblem.ImageProcessing;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Threading;
 
 namespace LinkedInPuzzles.Service.ZipSolver.ImageProcessing
 {
@@ -30,43 +31,65 @@ namespace LinkedInPuzzles.Service.ZipSolver.ImageProcessing
         /// Processes the input image to solve the Zip Problem
         /// </summary>
         /// <param name="inputImage">The captured image containing the Zip board</param>
+        /// <param name="cancellationToken">Token to monitor for cancellation requests</param>
         /// <returns>A tuple containing the result image, solution path, board, and detected board bounds</returns>
-        public (Bitmap resultImage, List<ZipNode> solution, ZipBoard board, Rectangle boardBounds) ProcessAndSolveZipPuzzle(Bitmap inputImage)
+        public (Bitmap resultImage, List<ZipNode> solution, ZipBoard board, Rectangle boardBounds) ProcessAndSolveZipPuzzle(
+            Bitmap inputImage,
+            CancellationToken cancellationToken = default)
         {
-
-            // Validate input image
-            if (inputImage == null || inputImage.Width < 100 || inputImage.Height < 100)
+            try
             {
-                throw new ArgumentException("Input image is too small or invalid");
+                cancellationToken.ThrowIfCancellationRequested();
+
+                // Validate input image
+                if (inputImage == null || inputImage.Width < 100 || inputImage.Height < 100)
+                {
+                    throw new ArgumentException("Input image is too small or invalid");
+                }
+
+                // Convert Bitmap to Mat
+                Mat colorImage = inputImage.ToMat();
+                _debugHelper.SaveDebugImage(colorImage, "input_color_mat");
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                // Detect the board dimensions
+                var boardInfo = _boardDetector.ExtractCurvedBoardAndAnalyze(colorImage);
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                // Get the board bounds in the original image
+                Rectangle boardBounds = _boardDetector.GetBoardBoundsInOriginalImage(colorImage, boardInfo.WarpedBoard);
+
+                // Process the board image to extract numbers and connectivity
+                ZipBoard zipBoard = _zipBoardProcessor.ProcessImage(boardInfo.WarpedBoard, boardInfo.Rows);
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                // Create a solver and solve the puzzle
+                var zipSolver = new ZipProblem.ZipSolver(zipBoard);
+                List<ZipNode> solution = zipSolver.Solve();
+
+                if (solution == null || solution.Count == 0)
+                {
+                    throw new InvalidOperationException("No solution found for this Zip puzzle configuration.");
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                // Visualize the solution on the image
+                Bitmap resultImage = DrawSolution(boardInfo.WarpedBoard, zipBoard, solution);
+
+                return (resultImage, solution, zipBoard, boardBounds);
             }
-
-            // Convert Bitmap to Mat
-            Mat colorImage = inputImage.ToMat();
-            _debugHelper.SaveDebugImage(colorImage, "input_color_mat");
-
-            // Detect the board dimensions
-            var boardInfo = _boardDetector.ExtractCurvedBoardAndAnalyze(colorImage);
-
-            // Get the board bounds in the original image
-            Rectangle boardBounds = _boardDetector.GetBoardBoundsInOriginalImage(colorImage, boardInfo.WarpedBoard);
-
-            // Process the board image to extract numbers and connectivity
-            ZipBoard zipBoard = _zipBoardProcessor.ProcessImage(boardInfo.WarpedBoard, boardInfo.Rows);
-
-            // Create a solver and solve the puzzle
-            var zipSolver = new ZipProblem.ZipSolver(zipBoard);
-            List<ZipNode> solution = zipSolver.Solve();
-
-            if (solution == null || solution.Count == 0)
+            catch (OperationCanceledException)
             {
-                throw new InvalidOperationException("No solution found for this Zip puzzle configuration.");
+                throw;
             }
-
-
-            // Visualize the solution on the image
-            Bitmap resultImage = DrawSolution(boardInfo.WarpedBoard, zipBoard, solution);
-
-            return (resultImage, solution, zipBoard, boardBounds);
+            catch (Exception ex)
+            {
+                throw new Exception($"Error processing image: {ex.Message}", ex);
+            }
         }
 
         /// <summary>

@@ -2,6 +2,7 @@ using Emgu.CV;
 using LinkedInPuzzles.Service.QueensProblem.Algorithm;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Threading;
 
 namespace LinkedInPuzzles.Service.QueensProblem.ImageProcessing
 {
@@ -19,11 +20,17 @@ namespace LinkedInPuzzles.Service.QueensProblem.ImageProcessing
         /// </summary>
         /// <param name="inputImage">The captured image containing the board</param>
         /// <param name="skipWarping">Whether to skip the perspective warping step (useful for screenshots)</param>
+        /// <param name="cancellationToken">Token to monitor for cancellation requests</param>
         /// <returns>A tuple containing the result image, queens solution, and board boundaries</returns>
-        public (Bitmap resultImage, Queen[] queens, Rectangle boardBounds) ProcessAndSolveQueensProblem(Bitmap inputImage, bool skipWarping = false)
+        public (Bitmap resultImage, Queen[] queens, Rectangle boardBounds) ProcessAndSolveQueensProblem(
+            Bitmap inputImage, 
+            bool skipWarping = false,
+            CancellationToken cancellationToken = default)
         {
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 // Save the input image for reference
                 string capturedImagePath = "captured_input.png";
                 inputImage.Save(capturedImagePath, ImageFormat.Png);
@@ -38,8 +45,12 @@ namespace LinkedInPuzzles.Service.QueensProblem.ImageProcessing
                 var boardProcessor = new QueensBoardProcessor(colorAnalyzer, debugHelper);
                 var queenSolver = new QueensSolver();
 
+                cancellationToken.ThrowIfCancellationRequested();
+
                 // Extract the board from the image, optionally skipping warping
                 var (boardImage, rows, columns) = boardDetector.ExtractBoardAndAnalyze(colorImage);
+
+                cancellationToken.ThrowIfCancellationRequested();
 
                 // Store the actual board boundaries within the original image
                 Rectangle boardBounds = boardDetector.GetBoardBoundsInOriginalImage(colorImage, boardImage);
@@ -52,6 +63,8 @@ namespace LinkedInPuzzles.Service.QueensProblem.ImageProcessing
                 // Process the extracted board into a grid of colors
                 string[,] board = boardProcessor.ProcessBoardImage(boardImage, rows);
 
+                cancellationToken.ThrowIfCancellationRequested();
+
                 // Solve the Queens Problem
                 var queens = queenSolver.Solve(board);
 
@@ -60,6 +73,8 @@ namespace LinkedInPuzzles.Service.QueensProblem.ImageProcessing
                     throw new Exception("No solution found for this board configuration.");
                 }
 
+                cancellationToken.ThrowIfCancellationRequested();
+
                 // Draw the queens on the board image
                 Bitmap resultImage = boardProcessor.DrawQueens(boardImage, queens.ToList());
 
@@ -67,9 +82,11 @@ namespace LinkedInPuzzles.Service.QueensProblem.ImageProcessing
                 string outputPath = "queens_solution.png";
                 resultImage.Save(outputPath, ImageFormat.Png);
 
-                // Draw board bounds for debugging if enabled
-
                 return (resultImage, queens, boardBounds);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {

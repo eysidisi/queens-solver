@@ -15,6 +15,8 @@ namespace LinkedInPuzzles.UI
         private readonly MouseAutomationService mouseAutomation;
         private readonly Rectangle boardBounds;
         private Panel buttonPanel;
+        private CancellationTokenSource cancellationTokenSource;
+        private Label statusLabel;
 
         public ResultForm(Bitmap resultImage, Queen[] queensSolution, Rectangle originalScreenRegion, Form parentForm, Rectangle detectedBoardBounds)
             : this(resultImage, queensSolution, null, originalScreenRegion, parentForm, detectedBoardBounds)
@@ -34,13 +36,27 @@ namespace LinkedInPuzzles.UI
             this.originalScreenRegion = originalScreenRegion;
             this.parentForm = parentForm;
             this.mouseAutomation = new MouseAutomationService();
+            this.cancellationTokenSource = new CancellationTokenSource();
 
             // Store the detected board bounds or estimate them
             this.boardBounds = detectedBoardBounds;
 
             InitializeComponents();
+            
+            // Add key event handler
+            this.KeyPreview = true;
+            this.KeyDown += ResultForm_KeyDown;
         }
 
+        private void ResultForm_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Escape)
+            {
+                cancellationTokenSource.Cancel();
+                statusLabel.Text = "Operation cancelled by user";
+                statusLabel.BackColor = Color.LightPink;
+            }
+        }
 
         private void InitializeComponents()
         {
@@ -75,7 +91,7 @@ namespace LinkedInPuzzles.UI
             };
 
             // Add status label
-            Label statusLabel = new Label
+            statusLabel = new Label
             {
                 Text = "Ready to auto-solve",
                 Dock = DockStyle.Bottom,
@@ -175,16 +191,24 @@ namespace LinkedInPuzzles.UI
                 return;
             }
 
+            // Reset cancellation token
+            cancellationTokenSource = new CancellationTokenSource();
+            var token = cancellationTokenSource.Token;
+
             // Disable buttons during auto-clicking
             DisableButtons(buttonPanel);
-            statusLabel.Text = "Auto-clicking Queens solution in progress...";
+            statusLabel.Text = "Auto-clicking Queens solution in progress... (Press ESC to cancel)";
 
-            // Hide this form and the parent form
-            this.WindowState = FormWindowState.Minimized;
-            parentForm.WindowState = FormWindowState.Minimized;
+            // Move form to background instead of minimizing
+            this.TopMost = false;
+            this.WindowState = FormWindowState.Normal;
+            this.Location = new Point(-1000, -1000); // Move off screen
+            parentForm.TopMost = false;
+            parentForm.WindowState = FormWindowState.Normal;
+            parentForm.Location = new Point(-1000, -1000);
 
-            // Give time for forms to minimize
-            await Task.Delay(100);
+            // Give time for forms to move
+            await Task.Delay(100, token);
 
             try
             {
@@ -193,10 +217,16 @@ namespace LinkedInPuzzles.UI
                     queensSolution,
                     originalScreenRegion,
                     delayBetweenClicks: null,
-                    boardBounds: boardBounds);
+                    boardBounds: boardBounds,
+                    cancellationToken: token);
 
                 statusLabel.Text = "Auto-clicking completed successfully!";
                 statusLabel.BackColor = Color.LightGreen;
+            }
+            catch (OperationCanceledException)
+            {
+                statusLabel.Text = "Auto-clicking cancelled by user";
+                statusLabel.BackColor = Color.LightPink;
             }
             catch (Exception ex)
             {
@@ -208,8 +238,8 @@ namespace LinkedInPuzzles.UI
             finally
             {
                 // Restore windows
-                this.WindowState = FormWindowState.Normal;
-                parentForm.WindowState = FormWindowState.Normal;
+                this.Location = new Point(100, 100); // Move back on screen
+                parentForm.Location = new Point(100, 100);
 
                 // Re-enable buttons
                 EnableButtons(buttonPanel);
@@ -225,16 +255,24 @@ namespace LinkedInPuzzles.UI
                 return;
             }
 
+            // Reset cancellation token
+            cancellationTokenSource = new CancellationTokenSource();
+            var token = cancellationTokenSource.Token;
+
             // Disable buttons during auto-solving
             DisableButtons(buttonPanel);
-            statusLabel.Text = "Auto-solving Zip solution in progress...";
+            statusLabel.Text = "Auto-solving Zip solution in progress... (Press ESC to cancel)";
 
-            // Hide this form and the parent form
-            this.WindowState = FormWindowState.Minimized;
-            parentForm.WindowState = FormWindowState.Minimized;
+            // Move form to background instead of minimizing
+            this.TopMost = false;
+            this.WindowState = FormWindowState.Normal;
+            this.Location = new Point(-1000, -1000); // Move off screen
+            parentForm.TopMost = false;
+            parentForm.WindowState = FormWindowState.Normal;
+            parentForm.Location = new Point(-1000, -1000);
 
-            // Give time for forms to minimize
-            await Task.Delay(100);
+            // Give time for forms to move
+            await Task.Delay(100, token);
 
             try
             {
@@ -243,10 +281,16 @@ namespace LinkedInPuzzles.UI
                     zipSolution,
                     originalScreenRegion,
                     delayBetweenDrags: 1,
-                    boardBounds: boardBounds);
+                    boardBounds: boardBounds,
+                    cancellationToken: token);
 
                 statusLabel.Text = "Auto-solving Zip completed successfully!";
                 statusLabel.BackColor = Color.LightGreen;
+            }
+            catch (OperationCanceledException)
+            {
+                statusLabel.Text = "Auto-solving cancelled by user";
+                statusLabel.BackColor = Color.LightPink;
             }
             catch (Exception ex)
             {
@@ -258,8 +302,8 @@ namespace LinkedInPuzzles.UI
             finally
             {
                 // Restore windows
-                this.WindowState = FormWindowState.Normal;
-                parentForm.WindowState = FormWindowState.Normal;
+                this.Location = new Point(100, 100); // Move back on screen
+                parentForm.Location = new Point(100, 100);
 
                 // Re-enable buttons
                 EnableButtons(buttonPanel);

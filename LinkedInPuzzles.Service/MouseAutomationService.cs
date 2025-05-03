@@ -2,6 +2,7 @@ using LinkedInPuzzles.Service.QueensProblem.Algorithm;
 using LinkedInPuzzles.Service.ZipProblem;
 using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace LinkedInPuzzles.Service
 {
@@ -88,8 +89,14 @@ namespace LinkedInPuzzles.Service
         /// <param name="screenRegion">The original screen region containing the board</param>
         /// <param name="delayBetweenClicks">Optional override for delay between clicks</param>
         /// <param name="boardBounds">Optional rectangle specifying the actual board bounds within the screenshot</param>
+        /// <param name="cancellationToken">Token to monitor for cancellation requests</param>
         /// <returns>Task representing the async operation</returns>
-        public async Task ClickQueenPositions(Queen[] queens, Rectangle screenRegion, int? delayBetweenClicks = null, Rectangle? boardBounds = null)
+        public async Task ClickQueenPositions(
+            Queen[] queens, 
+            Rectangle screenRegion, 
+            int? delayBetweenClicks = null, 
+            Rectangle? boardBounds = null,
+            CancellationToken cancellationToken = default)
         {
             ValidateParameters(queens, screenRegion);
 
@@ -112,6 +119,8 @@ namespace LinkedInPuzzles.Service
 
             for (int i = 0; i < queens.Length; i++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 var queen = queens[i];
 
                 // Calculate screen coordinates for the center of the cell
@@ -124,7 +133,7 @@ namespace LinkedInPuzzles.Service
                 MoveCursorTo(screenX, screenY);
 
                 // Small delay to ensure cursor is positioned correctly
-                await Task.Delay(movementDelay);
+                await Task.Delay(movementDelay, cancellationToken);
 
                 // Perform mouse click
                 PerformMouseDoubleClick();
@@ -135,7 +144,7 @@ namespace LinkedInPuzzles.Service
                 // Delay between clicks (except after the last click)
                 if (i < queens.Length - 1)
                 {
-                    await Task.Delay(actualDelay);
+                    await Task.Delay(actualDelay, cancellationToken);
                 }
             }
         }
@@ -147,8 +156,14 @@ namespace LinkedInPuzzles.Service
         /// <param name="screenRegion">The original screen region containing the board</param>
         /// <param name="delayBetweenDrags">Optional override for delay between drag operations</param>
         /// <param name="boardBounds">Optional rectangle specifying the actual board bounds within the screenshot</param>
+        /// <param name="cancellationToken">Token to monitor for cancellation requests</param>
         /// <returns>Task representing the async operation</returns>
-        public async Task DragBetweenZipNodes(List<ZipNode> nodes, Rectangle screenRegion, int delayBetweenDrags, Rectangle? boardBounds = null)
+        public async Task DragBetweenZipNodes(
+            List<ZipNode> nodes, 
+            Rectangle screenRegion, 
+            int delayBetweenDrags, 
+            Rectangle? boardBounds = null,
+            CancellationToken cancellationToken = default)
         {
             if (nodes == null || nodes.Count == 0)
             {
@@ -167,6 +182,8 @@ namespace LinkedInPuzzles.Service
 
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 // Block user input while performing drag operations
                 BlockUserInput(true);
 
@@ -205,7 +222,7 @@ namespace LinkedInPuzzles.Service
                     int screenY = boardStartY + (node.Row * cellHeight) + (cellHeight / 2);
 
                     MoveCursorTo(screenX, screenY);
-                    await Task.Delay(Math.Min(movementDelay, 10));  // Reduced delay
+                    await Task.Delay(Math.Min(movementDelay, 10), cancellationToken);
                     PerformMouseClick();
 
                     OnProgressChanged(1, 1, new Point(screenX, screenY));
@@ -221,18 +238,12 @@ namespace LinkedInPuzzles.Service
 
                 // Move cursor to first position and click
                 MoveCursorTo(firstScreenX, firstScreenY);
-                await Task.Delay(Math.Min(movementDelay, 10));  // Reduced delay
-                PerformMouseClick();
-
-                // Progress information
-                OnProgressChanged(1, nodes.Count, new Point(firstScreenX, firstScreenY));
-
-                // Reduced delay before starting drag operations
-                await Task.Delay(Math.Min(delayBetweenDrags, 20));
 
                 // For each subsequent node, perform a drag operation
                 for (int i = 1; i < nodes.Count; i++)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     var node = nodes[i];
 
                     // Calculate screen coordinates for the center of the cell
@@ -242,16 +253,8 @@ namespace LinkedInPuzzles.Service
                     System.Diagnostics.Debug.WriteLine($"Dragging to node at: {node.Row},{node.Col} -> Screen position: {screenX},{screenY}");
 
                     // Perform drag operation from previous position to current node
-                    await PerformMouseDrag(screenX, screenY);
+                    await PerformMouseDrag(screenX, screenY, cancellationToken);
 
-                    // Progress information
-                    OnProgressChanged(i + 1, nodes.Count, new Point(screenX, screenY));
-
-                    // Reduced delay between drag operations (except after the last drag)
-                    if (i < nodes.Count - 1)
-                    {
-                        await Task.Delay(Math.Min(delayBetweenDrags, 20));
-                    }
                 }
             }
             finally
@@ -358,8 +361,9 @@ namespace LinkedInPuzzles.Service
         /// </summary>
         /// <param name="targetX">Target X coordinate</param>
         /// <param name="targetY">Target Y coordinate</param>
+        /// <param name="cancellationToken">Token to monitor for cancellation requests</param>
         /// <returns>Task representing the async operation</returns>
-        private async Task PerformMouseDrag(int targetX, int targetY)
+        private async Task PerformMouseDrag(int targetX, int targetY, CancellationToken cancellationToken = default)
         {
             // Get current cursor position
             POINT currentPoint;
@@ -375,17 +379,19 @@ namespace LinkedInPuzzles.Service
             double distance = Math.Sqrt(Math.Pow(targetX - startX, 2) + Math.Pow(targetY - startY, 2));
 
             // Reduce steps for faster dragging - fewer interpolation points
-            int steps = Math.Max(3, Math.Min(6, (int)(distance / 20)));
+            int steps = 5;
 
             // Press mouse down at current position
             mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
 
             // Reduced delay to ensure mouse down is registered
-            await Task.Delay(Math.Min(mouseDownDelay, 3));
+            await Task.Delay(Math.Min(mouseDownDelay, 3), cancellationToken);
 
             // Move through intermediate points with reduced delay
             for (int i = 1; i <= steps; i++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 // Calculate position along the path
                 int interpolatedX = startX + (int)((targetX - startX) * (i / (double)steps));
                 int interpolatedY = startY + (int)((targetY - startY) * (i / (double)steps));
@@ -394,15 +400,15 @@ namespace LinkedInPuzzles.Service
                 MoveCursorTo(interpolatedX, interpolatedY);
 
                 // Minimal delay between intermediate movements
-                int stepDelay = i == steps ? Math.Min(movementDelay, 5) : 1;
-                await Task.Delay(stepDelay);
+                //int stepDelay = i == steps ? Math.Min(movementDelay, 5) : 1;
+                await Task.Delay(1, cancellationToken);
             }
 
             // Ensure we end exactly at the target position
             MoveCursorTo(targetX, targetY);
 
             // Reduced delay before releasing the button
-            await Task.Delay(Math.Min(mouseDownDelay, 3));
+            await Task.Delay(Math.Min(mouseDownDelay, 3), cancellationToken);
 
             // Release mouse button at target position
             mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);

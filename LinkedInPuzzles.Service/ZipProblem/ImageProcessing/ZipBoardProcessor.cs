@@ -52,10 +52,10 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
 
             // Calculate cell dimensions
             int cellHeight = processedBoard.Height / numberOfCells;
-            int cellWidth = processedBoard.Width / numberOfCells;
+            int cellWidth = cellHeight;
 
             int widthPadding = (int)(cellWidth * 0.1);
-            int heightPadding = (int)(cellHeight * 0.1);
+            int heightPadding = widthPadding;
 
             // Process each cell
             for (int row = 0; row < numberOfCells; row++)
