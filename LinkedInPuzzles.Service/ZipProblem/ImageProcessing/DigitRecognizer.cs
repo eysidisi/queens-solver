@@ -48,7 +48,7 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
                 var parameters = new PreprocessingParameters
                 {
                     MorphKernelSize = 2,
-                    DilateIterations = 2
+                    DilateIterations = 1
                 };
 
                 // Preprocess the image for OCR
@@ -160,7 +160,7 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
                 CvInvoke.MorphologyEx(binary, binary, MorphOp.Close, element, new Point(-1, -1), 1, BorderType.Default, new MCvScalar());
 
                 if (parameters.DilateIterations > 0)
-                    CvInvoke.MorphologyEx(binary, binary, MorphOp.Dilate, element, new Point(-1, -1), 1, BorderType.Default, new MCvScalar());
+                    CvInvoke.MorphologyEx(binary, binary, MorphOp.Dilate, element, new Point(-1, -1), parameters.DilateIterations, BorderType.Default, new MCvScalar());
             }
 
             return binary;
