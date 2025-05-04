@@ -22,9 +22,7 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
             EnsureTessDataExists(tessdataPath);
 
             // Initialize Tesseract
-            // Include '0' in the whitelist so that multi-digit numbers (e.g., "10") can be recognized.
             _tesseract = new TesseractEngine(tessdataPath, "eng", EngineMode.Default);
-            _tesseract.SetVariable("tessedit_char_whitelist", "0123456789");
             _tesseract.SetVariable("classify_bln_numeric_mode", "1");
             _tesseract.SetVariable("text_is_digit_only", "1");
             _tesseract.SetVariable("tessedit_write_images", "true");
@@ -49,8 +47,8 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
                 // Define preprocessing parameters
                 var parameters = new PreprocessingParameters
                 {
-                    MorphKernelSize = 1,
-                    DilateIterations = 1
+                    MorphKernelSize = 2,
+                    DilateIterations = 2
                 };
 
                 // Preprocess the image for OCR
@@ -141,7 +139,7 @@ namespace LinkedInPuzzles.Service.ZipProblem.ImageProcessing
             }
 
             // 3. Since the input is clean, avoid heavy blurring. A light blur (if any) using a 3x3 kernel is enough.
-            //CvInvoke.GaussianBlur(processed, processed, new Size(3, 3), 0);
+            CvInvoke.GaussianBlur(processed, processed, new Size(3, 3), 0);
 
             // 4. Apply Otsu's thresholding to get a clean binary image.
             Mat binary = new Mat();
